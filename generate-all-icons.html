@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador Completo de Iconos PWA - Biocann</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        h1 {
+            color: #4CAF50;
+            margin-bottom: 30px;
+        }
+        .upload-area {
+            border: 3px dashed #4CAF50;
+            border-radius: 15px;
+            padding: 40px;
+            margin: 20px 0;
+            background: #f8fff8;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .upload-area:hover {
+            background: #e8f5e8;
+            border-color: #45a049;
+        }
+        .upload-area.dragover {
+            background: #e8f5e8;
+            border-color: #45a049;
+            transform: scale(1.02);
+        }
+        .preview {
+            margin: 20px 0;
+        }
+        .preview img {
+            max-width: 150px;
+            max-height: 150px;
+            border: 2px solid #4CAF50;
+            border-radius: 10px;
+        }
+        .generate-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+        }
+        .generate-btn:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+        .generate-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .progress {
+            margin: 20px 0;
+            padding: 15px;
+            background: #e8f5e8;
+            border-radius: 8px;
+            display: none;
+        }
+        .icon-list {
+            text-align: left;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+        .icon-list h3 {
+            color: #4CAF50;
+            margin-top: 0;
+        }
+        .icon-list ul {
+            list-style: none;
+            padding: 0;
+        }
+        .icon-list li {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .icon-list li:before {
+            content: "✅ ";
+            color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Generador Completo de Iconos PWA - Biocann</h1>
+        
+        <div class="upload-area" id="uploadArea">
+            <h3>📤 Arrastra aquí el logo de Biocann</h3>
+            <p>O haz clic para seleccionar archivo</p>
+            <input type="file" id="fileInput" accept="image/*" style="display: none;">
+        </div>
+
+        <div class="preview" id="preview" style="display: none;">
+            <h3>Vista previa del logo:</h3>
+            <img id="previewImg" alt="Logo de Biocann">
+        </div>
+
+        <button class="generate-btn" id="generateBtn" disabled>
+            🚀 Generar Todos los Iconos PWA
+        </button>
+
+        <div class="progress" id="progress">
+            <h3>⏳ Generando iconos...</h3>
+            <p id="progressText">Preparando archivos...</p>
+        </div>
+
+        <div class="icon-list" id="iconList" style="display: none;">
+            <h3>📋 Iconos que se generarán:</h3>
+            <ul>
+                <li>icon-72x72.png (Android)</li>
+                <li>icon-96x96.png (Android)</li>
+                <li>icon-128x128.png (Android)</li>
+                <li>icon-144x144.png (Android)</li>
+                <li>icon-152x152.png (iOS)</li>
+                <li>icon-192x192.png (Android)</li>
+                <li>icon-384x384.png (Android)</li>
+                <li>icon-512x512.png (Android)</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const iconSizes = [
+            { size: 72, name: 'icon-72x72.png' },
+            { size: 96, name: 'icon-96x96.png' },
+            { size: 128, name: 'icon-128x128.png' },
+            { size: 144, name: 'icon-144x144.png' },
+            { size: 152, name: 'icon-152x152.png' },
+            { size: 192, name: 'icon-192x192.png' },
+            { size: 384, name: 'icon-384x384.png' },
+            { size: 512, name: 'icon-512x512.png' }
+        ];
+
+        let currentImage = null;
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const generateBtn = document.getElementById('generateBtn');
+        const progress = document.getElementById('progress');
+        const progressText = document.getElementById('progressText');
+        const iconList = document.getElementById('iconList');
+
+        // Event listeners
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+        generateBtn.addEventListener('click', generateAllIcons);
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        function handleFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                loadImage(event.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function loadImage(src) {
+            const img = new Image();
+            img.onload = function() {
+                currentImage = img;
+                document.getElementById('previewImg').src = src;
+                document.getElementById('preview').style.display = 'block';
+                document.getElementById('iconList').style.display = 'block';
+                generateBtn.disabled = false;
+            };
+            img.src = src;
+        }
+
+        async function generateAllIcons() {
+            if (!currentImage) return;
+
+            progress.style.display = 'block';
+            generateBtn.disabled = true;
+
+            const zip = new JSZip();
+            const iconsFolder = zip.folder('icons');
+
+            for (let i = 0; i < iconSizes.length; i++) {
+                const iconInfo = iconSizes[i];
+                progressText.textContent = `Generando ${iconInfo.name}...`;
+
+                const canvas = document.createElement('canvas');
+                canvas.width = iconInfo.size;
+                canvas.height = iconInfo.size;
+                const ctx = canvas.getContext('2d');
+
+                // Crear fondo circular verde (color de Biocann)
+                ctx.fillStyle = '#4CAF50';
+                ctx.beginPath();
+                ctx.arc(iconInfo.size/2, iconInfo.size/2, iconInfo.size/2, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // Calcular dimensiones para centrar la imagen
+                const scale = Math.min(iconInfo.size * 0.8 / currentImage.width, iconInfo.size * 0.8 / currentImage.height);
+                const scaledWidth = currentImage.width * scale;
+                const scaledHeight = currentImage.height * scale;
+                const x = (iconInfo.size - scaledWidth) / 2;
+                const y = (iconInfo.size - scaledHeight) / 2;
+
+                // Dibujar la imagen centrada
+                ctx.drawImage(currentImage, x, y, scaledWidth, scaledHeight);
+
+                // Convertir a blob y agregar al ZIP
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                iconsFolder.file(iconInfo.name, blob);
+
+                // Pequeña pausa para mostrar progreso
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            progressText.textContent = 'Creando archivo ZIP...';
+
+            // Generar y descargar ZIP
+            const zipBlob = await zip.generateAsync({type: 'blob'});
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(zipBlob);
+            link.download = 'biocann-pwa-icons.zip';
+            link.click();
+
+            progressText.textContent = '✅ ¡Iconos generados exitosamente!';
+            generateBtn.disabled = false;
+
+            setTimeout(() => {
+                progress.style.display = 'none';
+            }, 3000);
+        }
+
+        // Cargar logo por defecto si existe
+        window.addEventListener('load', function() {
+            const testImg = new Image();
+            testImg.onload = function() {
+                loadImage('biocann-logo.jpg');
+            };
+            testImg.onerror = function() {
+                console.log('Logo por defecto no encontrado');
+            };
+            testImg.src = 'biocann-logo.jpg';
+        });
+    </script>
+</body>
+</html> 

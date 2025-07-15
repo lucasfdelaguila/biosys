@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Iconos PWA - Biocann</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #4CAF50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .upload-section {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px dashed #4CAF50;
+            border-radius: 10px;
+        }
+        .preview {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .preview img {
+            max-width: 200px;
+            max-height: 200px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .icon-item {
+            text-align: center;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        .icon-item canvas {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .download-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .download-btn:hover {
+            background: #45a049;
+        }
+        .instructions {
+            background: #e8f5e8;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .instructions h3 {
+            color: #2e7d32;
+            margin-top: 0;
+        }
+        .instructions ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .instructions li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Generador de Iconos PWA - Biocann</h1>
+        
+        <div class="instructions">
+            <h3>📋 Instrucciones:</h3>
+            <ol>
+                <li>Sube el logo de Biocann (formato PNG, JPG o SVG)</li>
+                <li>Los iconos se generarán automáticamente en todos los tamaños necesarios</li>
+                <li>Descarga cada icono haciendo clic en "Descargar"</li>
+                <li>Coloca todos los iconos en la carpeta <code>icons/</code> de tu proyecto</li>
+                <li>¡Tu PWA tendrá el icono oficial de Biocann!</li>
+            </ol>
+        </div>
+
+        <div class="upload-section">
+            <h3>📤 Subir Logo de Biocann</h3>
+            <input type="file" id="logoInput" accept="image/*" style="margin: 10px;">
+            <p>O usa el logo actual: <button onclick="loadDefaultLogo()" style="background: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">Cargar Logo Actual</button></p>
+        </div>
+
+        <div class="preview" id="preview" style="display: none;">
+            <img id="previewImg" alt="Vista previa del logo">
+        </div>
+
+        <div class="icon-grid" id="iconGrid"></div>
+    </div>
+
+    <script>
+        const iconSizes = [
+            { size: 72, name: 'icon-72x72.png' },
+            { size: 96, name: 'icon-96x96.png' },
+            { size: 128, name: 'icon-128x128.png' },
+            { size: 144, name: 'icon-144x144.png' },
+            { size: 152, name: 'icon-152x152.png' },
+            { size: 192, name: 'icon-192x192.png' },
+            { size: 384, name: 'icon-384x384.png' },
+            { size: 512, name: 'icon-512x512.png' }
+        ];
+
+        let currentImage = null;
+
+        document.getElementById('logoInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    loadImage(event.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function loadDefaultLogo() {
+            loadImage('biocann-logo.jpg');
+        }
+
+        function loadImage(src) {
+            const img = new Image();
+            img.onload = function() {
+                currentImage = img;
+                document.getElementById('previewImg').src = src;
+                document.getElementById('preview').style.display = 'flex';
+                generateIcons();
+            };
+            img.src = src;
+        }
+
+        function generateIcons() {
+            const grid = document.getElementById('iconGrid');
+            grid.innerHTML = '';
+
+            iconSizes.forEach(iconInfo => {
+                const canvas = document.createElement('canvas');
+                canvas.width = iconInfo.size;
+                canvas.height = iconInfo.size;
+                const ctx = canvas.getContext('2d');
+
+                // Crear fondo circular verde (color de Biocann)
+                ctx.fillStyle = '#4CAF50';
+                ctx.beginPath();
+                ctx.arc(iconInfo.size/2, iconInfo.size/2, iconInfo.size/2, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // Calcular dimensiones para centrar la imagen
+                const scale = Math.min(iconInfo.size * 0.8 / currentImage.width, iconInfo.size * 0.8 / currentImage.height);
+                const scaledWidth = currentImage.width * scale;
+                const scaledHeight = currentImage.height * scale;
+                const x = (iconInfo.size - scaledWidth) / 2;
+                const y = (iconInfo.size - scaledHeight) / 2;
+
+                // Dibujar la imagen centrada
+                ctx.drawImage(currentImage, x, y, scaledWidth, scaledHeight);
+
+                const iconItem = document.createElement('div');
+                iconItem.className = 'icon-item';
+                iconItem.innerHTML = `
+                    <h4>${iconInfo.size}x${iconInfo.size}</h4>
+                    <canvas width="${iconInfo.size}" height="${iconInfo.size}"></canvas>
+                    <br>
+                    <button class="download-btn" onclick="downloadIcon('${iconInfo.name}', ${iconInfo.size})">
+                        📥 Descargar ${iconInfo.name}
+                    </button>
+                `;
+
+                // Copiar el canvas generado
+                const itemCanvas = iconItem.querySelector('canvas');
+                const itemCtx = itemCanvas.getContext('2d');
+                itemCtx.drawImage(canvas, 0, 0);
+
+                grid.appendChild(iconItem);
+            });
+        }
+
+        function downloadIcon(filename, size) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            // Crear fondo circular verde
+            ctx.fillStyle = '#4CAF50';
+            ctx.beginPath();
+            ctx.arc(size/2, size/2, size/2, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Calcular dimensiones para centrar la imagen
+            const scale = Math.min(size * 0.8 / currentImage.width, size * 0.8 / currentImage.height);
+            const scaledWidth = currentImage.width * scale;
+            const scaledHeight = currentImage.height * scale;
+            const x = (size - scaledWidth) / 2;
+            const y = (size - scaledHeight) / 2;
+
+            // Dibujar la imagen centrada
+            ctx.drawImage(currentImage, x, y, scaledWidth, scaledHeight);
+
+            // Descargar
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // Cargar logo por defecto si existe
+        window.addEventListener('load', function() {
+            const testImg = new Image();
+            testImg.onload = function() {
+                loadDefaultLogo();
+            };
+            testImg.onerror = function() {
+                console.log('Logo por defecto no encontrado, esperando que el usuario suba uno');
+            };
+            testImg.src = 'biocann-logo.jpg';
+        });
+    </script>
+</body>
+</html> 
