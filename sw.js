@@ -1,13 +1,11 @@
-const CACHE_NAME = 'sauco-app-v1';
+const CACHE_NAME = 'biocann-app-v1';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/bioform/reg_actividades.html',
-  '/mod_supercritico/index.html',
-  '/mod_nc/index.html',
-  '/mod_inv/index.html',
-  '/styles.css',
-  '/script.js'
+  './',
+  './index.html',
+  './bioform/reg_actividades.html',
+  './mod_supercritico/index.html',
+  './mod_nc/index.html',
+  './mod_inv/index.html'
 ];
 
 // Instalación del Service Worker
