@@ -324,12 +324,14 @@
             height: 100%;
             background-color: rgba(0, 0, 0, 0.9);
             backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .modal-content {
             position: relative;
             background-color: #232323;
-            margin: 2% auto;
             padding: 0;
             width: 90%;
             max-width: 900px;
@@ -337,6 +339,9 @@
             max-height: 95vh;
             overflow: hidden;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            margin: 0 auto;
         }
 
         .modal-header {
@@ -346,6 +351,9 @@
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid #717170;
+            position: relative;
+            z-index: 1;
+            flex-shrink: 0;
         }
 
         .modal-header h3 {
@@ -353,6 +361,10 @@
             margin: 0;
             font-size: 1.3rem;
             font-weight: 600;
+            max-width: 70%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .image-counter {
@@ -370,8 +382,10 @@
             align-items: center;
             justify-content: center;
             min-height: 400px;
-            max-height: 70vh;
+            flex: 1;
             background: #181819;
+            overflow: hidden;
+            padding: 20px;
         }
 
         .modal-body img {
@@ -379,6 +393,10 @@
             max-height: 100%;
             object-fit: contain;
             border-radius: 8px;
+            display: block;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
         }
 
         .nav-btn {
@@ -395,7 +413,7 @@
             border-radius: 50%;
             backdrop-filter: blur(10px);
             transition: all 0.3s ease;
-            z-index: 10001;
+            z-index: 10;
         }
 
         .nav-btn:hover {
@@ -422,6 +440,11 @@
             display: flex;
             gap: 15px;
             border-top: 1px solid #717170;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 1;
+            justify-content: center;
+            width: 100%;
         }
 
         .modal-btn {
@@ -451,7 +474,7 @@
             font-size: 2rem;
             font-weight: bold;
             cursor: pointer;
-            z-index: 10001;
+            z-index: 20;
             background: rgba(255, 255, 255, 0.1);
             width: 40px;
             height: 40px;
@@ -472,7 +495,6 @@
         @media (max-width: 768px) {
             .modal-content {
                 width: 95%;
-                margin: 5% auto;
                 max-height: 90vh;
             }
 
@@ -503,6 +525,7 @@
             .modal-footer {
                 padding: 15px 20px;
                 flex-direction: column;
+                width: 100%;
             }
 
             .modal-btn {
@@ -579,6 +602,10 @@
                     const fechaB = parsearFecha(b['Marca temporal']);
                     return fechaB - fechaA;
                 });
+                
+                // Debug: mostrar las columnas disponibles
+                console.log('Columnas disponibles:', encabezados);
+                console.log('Primer registro:', todosDatos[0]);
                 
                 actualizarTabla();
                 actualizarEstadisticas();
