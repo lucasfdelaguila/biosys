@@ -1,0 +1,2236 @@
+                            <div class="summary-item">
+                                <span class="summary-label">Actividad Más Frecuente:</span>
+                                <span class="summary-value" id="mostFrequentActivity">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <script>
+        // CONFIGURACIÓN
+        const SHEET_ID = '10Ib6l6V84Zun2e2m23Y5_7ZE1ie1mSGJ9qXKhm5384c';
+        const SHEET_NAME = 'Respuestas de Formulario 1';
+        
+        // VARIABLES GLOBALES
+        let todosDatos = [];
+        let datosFiltrados = [];
+        let currentImageUrls = [];
+        let currentImageIndex = 0;
+
+        // FUNCIÓN PARA CONTAR EMPLEADOS ÚNICOS CORRECTAMENTE
+        function obtenerEmpleadosUnicos(todosDatos) {
+            if (!todosDatos || todosDatos.length === 0) return 0;
+            
+            const claves = Object.keys(todosDatos[0]);
+            const empleadosSet = new Set();
+            
+            todosDatos.forEach(fila => {
+                const empleadosCampo = fila[claves[6]] || '';
+                if (empleadosCampo && empleadosCampo.trim() !== '') {
+                    const empleadosArray = empleadosCampo.split(',')
+                        .map(emp => emp.trim())
+                        .filter(emp => emp.length > 0);
+                    
+                    empleadosArray.forEach(empleado => {
+                        empleadosSet.add(empleado);
+                    });
+                }
+            });
+            
+            return empleadosSet.size;
+        }
+
+        // FUNCIÓN PARA CONTAR ACTIVIDADES POR EMPLEADO CORRECTAMENTE
+        function obtenerConteoEmpleadosActividades(todosDatos) {
+            const claves = Object.keys(todosDatos[0] || {});
+            const conteoEmpleados = {};
+            
+            todosDatos.forEach((registro, index) => {
+                const empleadosCampo = registro[claves[6]] || '';
+                if (empleadosCampo && empleadosCampo.trim() !== '') {
+                    const empleadosArray = empleadosCampo.split(',')
+                        .map(emp => emp.trim())
+                        .filter(emp => emp.length > 0);
+                    
+                    empleadosArray.forEach(empleado => {
+                        conteoEmpleados[empleado] = (conteoEmpleados[empleado] || 0) + 1;
+                    });
+                }
+            });
+            
+            return conteoEmpleados;
+        }
+
+        // FUNCIÓN PARA ABRIR MODAL DE IMÁGENES
+        window.openImageModal = function(encodedImageUrls, initialIndex, encodedCaption) {
+            const modal = document.getElementById('imageModal');
+            const captionText = document.getElementById('imageCaption');
+
+            try {
+                currentImageUrls = JSON.parse(decodeURIComponent(encodedImageUrls));
+                currentImageIndex = initialIndex;
+                captionText.dataset.originalCaption = decodeURIComponent(encodedCaption);
+
+                if (!modal.querySelector('.image-loading-spinner')) {
+                    const spinner = document.createElement('div');
+                    spinner.className = 'image-loading-spinner';
+                    modal.appendChild(spinner);
+                }
+
+                modal.style.display = 'block';
+                modal.offsetHeight;
+                modal.classList.add('show');
+
+                createImageIndicators();
+
+                setTimeout(() => {
+                    displayImageInModal(currentImageIndex);
+                }, 100);
+
+                document.addEventListener('keydown', handleImageModalKeyDown);
+
+            } catch (e) {
+                console.error("Error al abrir el modal de imagen:", e);
+                window.closeImageModal();
+            }
+        };
+
+        // FUNCIÓN PARA MOSTRAR IMAGEN EN MODAL
+        function displayImageInModal(index) {
+            const modalImg = document.getElementById('modalImage');
+            const captionText = document.getElementById('imageCaption');
+            const prevButton = document.querySelector('.image-prev');
+            const nextButton = document.querySelector('.image-next');
+            const loadingSpinner = document.querySelector('.image-loading-spinner');
+
+            if (currentImageUrls.length > 0 && index >= 0 && index < currentImageUrls.length) {
+                if (loadingSpinner) {
+                    loadingSpinner.style.display = 'block';
+                }
+
+                modalImg.classList.add('changing');
+                modalImg.classList.remove('loaded');
+
+                setTimeout(() => {
+                    modalImg.src = currentImageUrls[index];
+                    
+                    modalImg.onload = () => {
+                        if (loadingSpinner) {
+                            loadingSpinner.style.display = 'none';
+                        }
+                        modalImg.classList.remove('changing');
+                        modalImg.classList.add('loaded');
+                    };
+
+                    modalImg.onerror = () => {
+                        modalImg.src = getOriginalImageUrl(currentImageUrls[index]);
+                        if (loadingSpinner) {
+                            loadingSpinner.style.display = 'none';
+                        }
+                    };
+
+                    captionText.innerHTML = `Imagen ${index + 1} de ${currentImageUrls.length} - ${captionText.dataset.originalCaption}`;
+
+                    if (prevButton) prevButton.style.display = (index === 0) ? 'none' : 'flex';
+                    if (nextButton) nextButton.style.display = (index === currentImageUrls.length - 1) ? 'none' : 'flex';
+
+                    updateImageIndicators(index);
+                }, 150);
+            }
+        }
+
+        // FUNCIÓN PARA CREAR INDICADORES
+        function createImageIndicators() {
+            const modal = document.getElementById('imageModal');
+            let indicatorsContainer = modal.querySelector('.image-indicators');
+            
+            if (indicatorsContainer) {
+                indicatorsContainer.remove();
+            }
+
+            if (currentImageUrls.length > 1) {
+                indicatorsContainer = document.createElement('div');
+                indicatorsContainer.className = 'image-indicators';
+                
+                currentImageUrls.forEach((_, index) => {
+                    const indicator = document.createElement('div');
+                    indicator.className = `image-indicator ${index === currentImageIndex ? 'active' : ''}`;
+                    indicator.onclick = () => {
+                        currentImageIndex = index;
+                        displayImageInModal(currentImageIndex);
+                    };
+                    indicatorsContainer.appendChild(indicator);
+                });
+
+                modal.appendChild(indicatorsContainer);
+            }
+        }
+
+        // FUNCIÓN PARA ACTUALIZAR INDICADORES
+        function updateImageIndicators(activeIndex) {
+            const indicators = document.querySelectorAll('.image-indicator');
+            indicators.forEach((indicator, index) => {
+                indicator.classList.toggle('active', index === activeIndex);
+            });
+        }
+
+        // FUNCIÓN PARA MANEJAR TECLADO
+        function handleImageModalKeyDown(event) {
+            if (!document.getElementById('imageModal').classList.contains('show')) return;
+
+            switch(event.key) {
+                case 'Escape':
+                    window.closeImageModal();
+                    break;
+                case 'ArrowRight':
+                case ' ':
+                    event.preventDefault();
+                    window.showNextImage();
+                    break;
+                case 'ArrowLeft':
+                    event.preventDefault();
+                    window.showPrevImage();
+                    break;
+                case 'Home':
+                    event.preventDefault();
+                    currentImageIndex = 0;
+                    displayImageInModal(currentImageIndex);
+                    break;
+                case 'End':
+                    event.preventDefault();
+                    currentImageIndex = currentImageUrls.length - 1;
+                    displayImageInModal(currentImageIndex);
+                    break;
+            }
+        }
+
+        // FUNCIÓN PARA CERRAR MODAL
+        window.closeImageModal = function() {
+            const modal = document.getElementById('imageModal');
+            
+            modal.classList.remove('show');
+            
+            document.removeEventListener('keydown', handleImageModalKeyDown);
+            
+            setTimeout(() => {
+                modal.style.display = 'none';
+                currentImageUrls = [];
+                currentImageIndex = 0;
+                
+                const indicators = modal.querySelector('.image-indicators');
+                if (indicators) {
+                    indicators.remove();
+                }
+                
+                const modalImg = document.getElementById('modalImage');
+                modalImg.classList.remove('loaded', 'changing');
+                modalImg.src = '';
+            }, 300);
+        };
+
+        // FUNCIÓN PARA MOSTRAR SIGUIENTE IMAGEN
+        window.showNextImage = function() {
+            if (currentImageIndex < currentImageUrls.length - 1) {
+                currentImageIndex++;
+                displayImageInModal(currentImageIndex);
+            }
+        };
+
+        // FUNCIÓN PARA MOSTRAR IMAGEN ANTERIOR
+        window.showPrevImage = function() {
+            if (currentImageIndex > 0) {
+                currentImageIndex--;
+                displayImageInModal(currentImageIndex);
+            }
+        };
+
+        // FUNCIÓN PARA OBTENER URL ORIGINAL
+        function getOriginalImageUrl(convertedUrl) {
+            if (convertedUrl.includes('thumbnail?id=')) {
+                const fileId = convertedUrl.match(/id=([a-zA-Z0-9_-]+)/)?.[1];
+                if (fileId) {
+                    return `https://drive.google.com/file/d/${fileId}/view`;
+                }
+            }
+            return convertedUrl;
+        }
+
+        // FUNCIÓN PARA MANEJAR IMÁGENES QUE NO CARGAN
+        function tryFallbackImage(imgElement, originalUrl) {
+            const fileIdMatch = originalUrl.match(/id=([a-zA-Z0-9_-]+)/);
+            if (!fileIdMatch) {
+                imgElement.style.display = 'none';
+                imgElement.nextElementSibling.style.display = 'flex';
+                return;
+            }
+            
+            const fileId = fileIdMatch[1];
+            const fallbackUrls = [
+                `https://drive.google.com/uc?export=view&id=${fileId}`,
+                `https://drive.google.com/uc?id=${fileId}`,
+            ];
+            
+            let currentTry = parseInt(imgElement.dataset.tryCount || '0');
+            
+            if (currentTry < fallbackUrls.length) {
+                imgElement.dataset.tryCount = (currentTry + 1).toString();
+                imgElement.src = fallbackUrls[currentTry];
+            } else {
+                imgElement.style.display = 'none';
+                imgElement.nextElementSibling.style.display = 'flex';
+            }
+        }
+
+        // HACER LAS FUNCIONES GLOBALES
+        window.tryFallbackImage = tryFallbackImage;
+        window.getOriginalImageUrl = getOriginalImageUrl;
+
+        // URLs ALTERNATIVAS
+        const urlsAlternativas = [
+            `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`,
+            `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}`,
+            `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&single=true&gid=0`
+        ];
+
+        // FUNCIÓN PARA PARSEAR LÍNEA CSV
+        function parsearLineaCSV(linea) {
+            const resultado = [];
+            let actual = '';
+            let enComillas = false;
+            let i = 0;
+            
+            while (i < linea.length) {
+                const char = linea[i];
+                
+                if (char === '"') {
+                    if (enComillas && linea[i + 1] === '"') {
+                        actual += '"';
+                        i += 2;
+                    } else {
+                        enComillas = !enComillas;
+                        i++;
+                    }
+                } else if (char === ',' && !enComillas) {
+                    resultado.push(actual.trim());
+                    actual = '';
+                    i++;
+                } else {
+                    actual += char;
+                    i++;
+                }
+            }
+            
+            resultado.push(actual.trim());
+            return resultado;
+        }
+
+        // FUNCIÓN PRINCIPAL PARA CARGAR DATOS
+        window.cargarDatos = async function() {
+            try {
+                mostrarEstado('Cargando datos del formulario...', 'success');
+                
+                let csvText = null;
+                
+                for (let i = 0; i < urlsAlternativas.length; i++) {
+                    const csvUrl = urlsAlternativas[i];
+                    
+                    try {
+                        mostrarEstado(`🔄 Probando conexión ${i + 1}/${urlsAlternativas.length}...`, 'success');
+                        
+                        const response = await fetch(csvUrl, {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'text/csv,text/plain,*/*',
+                                'Cache-Control': 'no-cache'
+                            },
+                            mode: 'cors'
+                        });
+                        
+                        if (response.ok) {
+                            csvText = await response.text();
+                            
+                            if (csvText && csvText.trim().length > 0 && csvText.includes(',')) {
+                                mostrarEstado(`✅ Conectado exitosamente con URL ${i + 1}`, 'success');
+                                break;
+                            }
+                        }
+                    } catch (error) {
+                        continue;
+                    }
+                }
+                
+                if (!csvText || csvText.trim().length === 0) {
+                    throw new Error('No se pudo acceder al Google Sheet desde ninguna URL. Verifica que esté compartido públicamente.');
+                }
+                
+                if (!csvText.includes(',') && !csvText.includes('\n')) {
+                    throw new Error('El contenido recibido no es un CSV válido');
+                }
+                
+                const filas = [];
+                const lineas = csvText.split('\n');
+                
+                for (let i = 0; i < lineas.length; i++) {
+                    const linea = lineas[i].trim();
+                    if (!linea) continue;
+                    
+                    const columnas = parsearLineaCSV(linea);
+                    if (columnas.length > 1) {
+                        filas.push(columnas);
+                    }
+                }
+                
+                if (filas.length === 0) {
+                    throw new Error('No se encontraron datos válidos en la hoja');
+                }
+                
+                const encabezados = filas[0];
+                
+                todosDatos = filas.slice(1)
+                    .filter(fila => fila.length > 1 && fila.some(celda => celda.trim() !== ''))
+                    .map(fila => {
+                        const obj = {};
+                        encabezados.forEach((encabezado, index) => {
+                            obj[encabezado] = fila[index] || '';
+                        });
+                        return obj;
+                    });
+                
+                if (todosDatos.length === 0) {
+                    throw new Error('No se encontraron registros de datos');
+                }
+                
+                const claves = Object.keys(todosDatos[0]);
+                datosFiltrados = [...todosDatos].sort((a, b) => {
+                    const fechaA = parsearFecha(a[claves[1]]);
+                    const fechaB = parsearFecha(b[claves[1]]);
+                    return fechaB - fechaA;
+                });
+                
+                actualizarTabla();
+                actualizarEstadisticasBasicas();
+                
+                mostrarEstado(`✅ Datos cargados exitosamente: ${todosDatos.length} registros encontrados`, 'success');
+                
+            } catch (error) {
+                mostrarEstado(`❌ Error: ${error.message}`, 'error');
+                
+                const cuerpoTabla = document.getElementById('tableBody');
+                if (cuerpoTabla) {
+                    cuerpoTabla.innerHTML = `
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 30px; color: #ff6b6b;">
+                                <strong>❌ Error de Conexión</strong><br><br>
+                                <strong>Para solucionar:</strong><br><br>
+                                1. Abre tu Google Sheet<br>
+                                2. Clic en "Compartir" (arriba derecha)<br>
+                                3. Cambiar a "Cualquier persona con el enlace"<br>
+                                4. Permisos: "Lector"<br>
+                                5. Recargar esta página<br><br>
+                                <a href="https://docs.google.com/spreadsheets/d/${SHEET_ID}" target="_blank" style="color: #60a5fa;">
+                                    📄 Abrir Google Sheet
+                                </a>
+                            </td>
+                        </tr>
+                    `;
+                }
+            }
+        };
+
+        // ACTUALIZAR TABLA
+        function actualizarTabla() {
+            const cuerpoTabla = document.getElementById('tableBody');
+            
+            if (datosFiltrados.length === 0) {
+                cuerpoTabla.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #ffffff; font-style: italic;">No hay datos que mostrar</td></tr>';
+                return;
+            }
+            
+            cuerpoTabla.innerHTML = datosFiltrados.map(fila => {
+                const claves = Object.keys(fila);
+                
+                const fecha = fila[claves[1]] || '';
+                const empleado = fila[claves[6]] || '';
+                const horaInicio = fila[claves[2]] || '';
+                const horaFin = fila[claves[3]] || '';
+                const estado = fila[claves[4]] || '';
+                const imagenes = fila[claves[7]] || '';
+                const actividad = fila[claves[8]] || '';
+                
+                let imagenesHtml = '';
+                if (imagenes && imagenes.trim() !== '') {
+                    let urlsImagenes = [];
+                    if (imagenes.includes(',')) {
+                        urlsImagenes = imagenes.split(',').map(url => url.trim()).filter(url => url.length > 0);
+                    } else {
+                        urlsImagenes = [imagenes.trim()];
+                    }
+                    
+                    const urlsProcesadas = urlsImagenes.map(url => convertirUrlGoogleDrive(url));
+                    
+                    if (urlsProcesadas.length > 0) {
+                        imagenesHtml = '<div class="image-container">' + 
+                            urlsProcesadas.map((url, index) => {
+                                const encodedImageUrls = encodeURIComponent(JSON.stringify(urlsProcesadas));
+                                const encodedCaption = encodeURIComponent(`${empleado} - ${actividad}`);
+
+                                return `
+                                    <div style="position: relative; display: inline-block;">
+                                        <img src="${url}" class="image-thumbnail" 
+                                           onclick="window.openImageModal('${encodedImageUrls}', ${index}, '${encodedCaption}')" 
+                                           onerror="tryFallbackImage(this, '${url}')" 
+                                           alt="Imagen ${index + 1}" title="Click para ampliar">
+                                        <div class="image-placeholder" style="display: none;" 
+                                             onclick="window.open('${getOriginalImageUrl(url)}', '_blank')" 
+                                             title="Click para abrir imagen">📷</div>
+                                    </div>
+                                `;
+                            }).join('') + '</div>';
+                    }
+                }
+                
+                return `
+                    <tr>
+                        <td>${formatearFecha(fecha)}</td>
+                        <td>${empleado}</td>
+                        <td>${horaInicio}</td>
+                        <td>${horaFin}</td>
+                        <td>${estado}</td>
+                        <td>${imagenesHtml}</td>
+                        <td>${actividad}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // FORMATEAR FECHA
+        function formatearFecha(fechaStr) {
+            if (!fechaStr) return fechaStr;
+            
+            const partes = fechaStr.split(' ');
+            if (partes.length >= 1) {
+                const parteFecha = partes[0];
+                const parteHora = partes[1] || '';
+                
+                const componentesFecha = parteFecha.split('/');
+                if (componentesFecha.length === 3) {
+                    const dia = componentesFecha[0].padStart(2, '0');
+                    const mes = componentesFecha[1].padStart(2, '0');
+                    const año = componentesFecha[2];
+                    
+                    return `${dia}/${mes}/${año} ${parteHora}`;
+                }
+            }
+            
+            return fechaStr;
+        }
+
+        // ACTUALIZAR ESTADÍSTICAS BÁSICAS
+        function actualizarEstadisticasBasicas() {
+            const hoy = new Date();
+            const hoyStr = `${hoy.getDate()}/${hoy.getMonth() + 1}/${hoy.getFullYear()}`;
+            const claves = Object.keys(todosDatos[0] || {});
+            
+            const registrosHoy = todosDatos.filter(fila => {
+                const fechaCruda = fila[claves[1]] || '';
+                return fechaCruda.includes(hoyStr);
+            });
+            
+            const empleadosUnicos = obtenerEmpleadosUnicos(todosDatos);
+            
+            document.getElementById('totalRecords').textContent = todosDatos.length;
+            document.getElementById('todayRecords').textContent = registrosHoy.length;
+            document.getElementById('uniqueEmployees').textContent = empleadosUnicos;
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('es-AR');
+            
+            mostrarFechasDisponibles();
+        }
+        
+        // FUNCIÓN PARA MOSTRAR FECHAS DISPONIBLES
+        function mostrarFechasDisponibles() {
+            const claves = Object.keys(todosDatos[0] || {});
+            const fechasUnicas = new Set();
+            
+            todosDatos.forEach(fila => {
+                const fechaCruda = fila[claves[1]] || '';
+                const soloFecha = fechaCruda.split(' ')[0];
+                if (soloFecha && soloFecha.includes('/')) {
+                    fechasUnicas.add(soloFecha);
+                }
+            });
+            
+            const fechasOrdenadas = Array.from(fechasUnicas).sort((a, b) => {
+                const fechaA = parsearFecha(a);
+                const fechaB = parsearFecha(b);
+                return fechaB - fechaA;
+            });
+            
+            const container = document.getElementById('fechasDisponibles');
+            if (container && fechasOrdenadas.length > 0) {
+                container.innerHTML = `Fechas disponibles: ${fechasOrdenadas.slice(0, 5).join(', ')}${fechasOrdenadas.length > 5 ? '...' : ''}`;
+                container.style.display = 'block';
+            }
+        }
+
+        // FUNCIÓN PARA PARSEAR FECHAS
+        function parsearFecha(fechaStr) {
+            if (!fechaStr) return new Date(0);
+            
+            try {
+                const soloFecha = fechaStr.split(' ')[0];
+                
+                const partes = soloFecha.split('/');
+                if (partes.length === 3) {
+                    const dia = parseInt(partes[0]);
+                    const mes = parseInt(partes[1]) - 1;
+                    const año = parseInt(partes[2]);
+                    
+                    const añoCompleto = año < 100 ? 2000 + año : año;
+                    
+                    return new Date(añoCompleto, mes, dia);
+                }
+                
+                return new Date(fechaStr);
+            } catch (error) {
+                return new Date(0);
+            }
+        }
+
+        // FUNCIÓN PARA APLICAR FILTROS
+        window.aplicarFiltros = function() {
+            if (!todosDatos || todosDatos.length === 0) {
+                return;
+            }
+            
+            const valorFiltroFecha = document.getElementById('filterDate').value;
+            const ordenFecha = document.getElementById('sortOrder').value;
+            
+            const claves = Object.keys(todosDatos[0]);
+            
+            datosFiltrados = todosDatos.filter(fila => {
+                const fechaCruda = fila[claves[1]] || '';
+                let coincide = true;
+                
+                if (valorFiltroFecha) {
+                    const fechaInput = new Date(valorFiltroFecha);
+                    fechaInput.setDate(fechaInput.getDate() + 1);
+                    
+                    const dia = fechaInput.getDate();
+                    const mes = fechaInput.getMonth() + 1;
+                    const año = fechaInput.getFullYear();
+                    
+                    const fechaBuscada = `${dia}/${mes}/${año}`;
+                    
+                    const soloFechaRegistro = fechaCruda.split(' ')[0];
+                    
+                    const fechaBuscadaNorm = normalizarFecha(fechaBuscada);
+                    const fechaRegistroNorm = normalizarFecha(soloFechaRegistro);
+                    
+                    if (fechaBuscadaNorm !== fechaRegistroNorm) {
+                        coincide = false;
+                    }
+                }
+                return coincide;
+            });
+            
+            datosFiltrados.sort((a, b) => {
+                const fechaA = parsearFecha(a[claves[1]]);
+                const fechaB = parsearFecha(b[claves[1]]);
+                
+                if (ordenFecha === 'asc') {
+                    return fechaA - fechaB;
+                } else {
+                    return fechaB - fechaA;
+                }
+            });
+            
+            actualizarTabla();
+        };
+
+        // FUNCIÓN PARA NORMALIZAR FECHAS
+        function normalizarFecha(fechaStr) {
+            if (!fechaStr || !fechaStr.includes('/')) return fechaStr;
+            
+            const partes = fechaStr.split('/');
+            if (partes.length !== 3) return fechaStr;
+            
+            const dia = parseInt(partes[0], 10);
+            const mes = parseInt(partes[1], 10);  
+            const año = parseInt(partes[2], 10);
+            
+            if (isNaN(dia) || isNaN(mes) || isNaN(año)) return fechaStr;
+            
+            return `${dia}/${mes}/${año}`;
+        }
+
+        // LIMPIAR FILTROS
+        window.limpiarFiltros = function() {
+            document.getElementById('filterDate').value = '';
+            document.getElementById('sortOrder').value = 'desc';
+            
+            if (!todosDatos || todosDatos.length === 0) {
+                return;
+            }
+            
+            const claves = Object.keys(todosDatos[0]);
+            datosFiltrados = [...todosDatos].sort((a, b) => {
+                const fechaA = parsearFecha(a[claves[1]]);
+                const fechaB = parsearFecha(b[claves[1]]);
+                return fechaB - fechaA;
+            });
+            
+            actualizarTabla();
+        };
+
+        // EXPORTAR DATOS
+        window.exportarDatos = function() {
+            if (datosFiltrados.length === 0) {
+                mostrarEstado('No hay datos para exportar', 'error');
+                return;
+            }
+            
+            const csv = [
+                ['Fecha/Hora', 'Empleado', 'Hora inicio', 'Hora finalización', 'Estado', 'Imágenes', 'Actividad'],
+                ...datosFiltrados.map(fila => {
+                    const claves = Object.keys(fila);
+                    return [
+                        fila[claves[1]] || '',
+                        fila[claves[6]] || '',
+                        fila[claves[2]] || '',
+                        fila[claves[3]] || '',
+                        fila[claves[4]] || '',
+                        fila[claves[7]] || '',
+                        fila[claves[8]] || ''
+                    ];
+                })
+            ].map(fila => fila.map(celda => `"${celda}"`).join(',')).join('\n');
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `biocann_actividades_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            mostrarEstado('Archivo exportado correctamente', 'success');
+        };
+
+        // CONVERTIR URL GOOGLE DRIVE
+        function convertirUrlGoogleDrive(url) {
+            if (!url || typeof url !== 'string') return url;
+            
+            if (url.includes('drive.google.com/uc?export=view') || url.includes('drive.google.com/thumbnail')) {
+                return url;
+            }
+            
+            let fileId = null;
+            
+            if (url.includes('drive.google.com/open?id=')) {
+                const match = url.match(/id=([a-zA-Z0-9_-]+)/);
+                if (match) fileId = match[1];
+            } else if (url.includes('drive.google.com/file/d/')) {
+                const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+                if (match) fileId = match[1];
+            }
+            
+            if (fileId) {
+                return `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;
+            }
+            
+            return url;
+        }
+
+        // MOSTRAR ESTADO
+        function mostrarEstado(mensaje, tipo) {
+            const status = document.getElementById('status');
+            if (status) {
+                status.textContent = mensaje;
+                status.className = `status ${tipo}`;
+                status.style.display = 'block';
+                
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        // ESTADÍSTICAS
+        window.abrirEstadisticas = function() {
+            if (todosDatos.length === 0) {
+                mostrarEstado('Primero debes cargar los datos para ver estadísticas', 'error');
+                return;
+            }
+            
+            const modal = document.getElementById('statsModal');
+            modal.style.display = 'block';
+            
+            setTimeout(() => {
+                modal.classList.add('show');
+                
+                setTimeout(() => {
+                    crearEstadisticasFinales();
+                }, 800);
+            }, 50);
+        };
+        
+        window.cerrarEstadisticas = function() {
+            const modal = document.getElementById('statsModal');
+            modal.classList.remove('show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+        };
+        
+        window.actualizarEstadisticas = function() {
+            crearEstadisticasFinales();
+        };
+        
+        function crearEstadisticasFinales() {
+            try {
+                if (!todosDatos || todosDatos.length === 0) {
+                    return;
+                }
+                
+                if (typeof Chart === 'undefined') {
+                    mostrarErrorEnGraficos('Chart.js no está cargado');
+                    return;
+                }
+                
+                crearGraficoActividades();
+                actualizarResumenEjecutivo();
+                
+                mostrarEstado('Estadísticas generadas correctamente', 'success');
+                
+            } catch (error) {
+                mostrarEstado('Error generando estadísticas: ' + error.message, 'error');
+                mostrarErrorEnGraficos('Error: ' + error.message);
+            }
+        }
+        
+        function crearGraficoActividades() {
+            const conteoEmpleados = obtenerConteoEmpleadosActividades(todosDatos);
+            
+            const empleados = Object.keys(conteoEmpleados);
+            const cantidades = Object.values(conteoEmpleados);
+            
+            if (empleados.length === 0) {
+                mostrarErrorEnGraficos('No hay datos de empleados');
+                return;
+            }
+            
+            const canvas = document.getElementById('chartActividades');
+            if (!canvas) {
+                return;
+            }
+            
+            if (window.miGraficoActividades) {
+                try {
+                    window.miGraficoActividades.destroy();
+                } catch (e) {
+                    console.log('Error destruyendo:', e);
+                }
+                window.miGraficoActividades = null;
+            }
+            
+            // Colores vívidos y vibrantes para el gráfico de torta
+            const colores = [
+                '#FF6B6B', // Rojo coral vibrante
+                '#4ECDC4', // Turquesa brillante
+                '#45B7D1', // Azul cielo
+                '#96CEB4', // Verde menta
+                '#FECA57', // Amarillo dorado
+                '#FF9FF3', // Rosa fucsia
+                '#54A0FF', // Azul eléctrico
+                '#5F27CD', // Púrpura
+                '#00D2D3', // Cian brillante
+                '#FF9F43'  // Naranja vibrante
+            ];
+            
+            try {
+                const ctx = canvas.getContext('2d');
+                
+                window.miGraficoActividades = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: empleados,
+                        datasets: [{
+                            data: cantidades,
+                            backgroundColor: colores.slice(0, empleados.length),
+                            borderColor: '#181819',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: '#ffffff',
+                                    font: {
+                                        size: 12,
+                                        family: 'Poppins'
+                                    },
+                                    padding: 15
+                                }
+                            },
+                            tooltip: {
+                                enabled: true,
+                                backgroundColor: '#232323',
+                                titleColor: '#ffffff',
+                                bodyColor: '#ffffff',
+                                borderColor: '#717170',
+                                borderWidth: 1
+                            }
+                        },
+                        animation: {
+                            duration: 1000
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                mostrarErrorEnGraficos('Error creando gráfico: ' + error.message);
+            }
+        }
+        
+        function mostrarErrorEnGraficos(mensaje) {
+            const canvas = document.getElementById('chartActividades');
+            if (canvas && canvas.parentElement) {
+                canvas.parentElement.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: center; height: 250px; color: #ff6b6b; text-align: center; flex-direction: column;">
+                        <div style="font-size: 16px; margin-bottom: 10px;">⚠️ Error</div>
+                        <div style="font-size: 12px;">${mensaje}</div>
+                    </div>
+                `;
+            }
+        }
+
+        function calcularHorasReales(horaInicio, horaFin, tiempoTotal) {
+            if (horaInicio && horaFin && horaInicio.trim() && horaFin.trim()) {
+                try {
+                    const inicio = convertirHoraAMinutos(horaInicio.trim());
+                    const fin = convertirHoraAMinutos(horaFin.trim());
+                    
+                    if (inicio !== null && fin !== null) {
+                        let diferencia = fin - inicio;
+                        
+                        if (diferencia < 0) {
+                            diferencia += 24 * 60;
+                        }
+                        
+                        const horas = diferencia / 60;
+                        if (horas > 0 && horas <= 24) {
+                            return Math.round(horas * 100) / 100;
+                        }
+                    }
+                } catch (error) {
+                    console.log('Error calculando horas:', error);
+                }
+            }
+            
+            if (tiempoTotal && tiempoTotal.trim()) {
+                return calcularHorasFromTiempoTotal(tiempoTotal);
+            }
+            
+            return 0;
+        }
+        
+        function convertirHoraAMinutos(horaStr) {
+            if (!horaStr) return null;
+            
+            let hora = horaStr.toLowerCase().replace(/\s+/g, '');
+            
+            let esPM = hora.includes('pm') || hora.includes('p.m.');
+            let esAM = hora.includes('am') || hora.includes('a.m.');
+            
+            hora = hora.replace(/(am|pm|a\.m\.|p\.m\.)/g, '');
+            
+            let match;
+            
+            match = hora.match(/(\d{1,2}):(\d{2})/);
+            if (match) {
+                let horas = parseInt(match[1]);
+                let minutos = parseInt(match[2]);
+                
+                if (esPM && horas !== 12) {
+                    horas += 12;
+                } else if (esAM && horas === 12) {
+                    horas = 0;
+                }
+                
+                return horas * 60 + minutos;
+            }
+            
+            match = hora.match(/(\d{1,2})/);
+            if (match) {
+                let horas = parseInt(match[1]);
+                
+                if (esPM && horas !== 12) {
+                    horas += 12;
+                } else if (esAM && horas === 12) {
+                    horas = 0;
+                }
+                
+                return horas * 60;
+            }
+            
+            return null;
+        }
+        
+        function calcularHorasFromTiempoTotal(tiempoStr) {
+            if (!tiempoStr || !tiempoStr.trim()) return 0;
+            
+            let horasDecimal = 0;
+            const tiempo = tiempoStr.trim();
+            
+            let match = tiempo.match(/(\d+):(\d+):(\d+)/);
+            if (match) {
+                const horas = parseInt(match[1]) || 0;
+                const minutos = parseInt(match[2]) || 0;
+                const segundos = parseInt(match[3]) || 0;
+                horasDecimal = horas + (minutos / 60) + (segundos / 3600);
+            } else {
+                match = tiempo.match(/(\d+):(\d+)/);
+                if (match) {
+                    const horas = parseInt(match[1]) || 0;
+                    const minutos = parseInt(match[2]) || 0;
+                    horasDecimal = horas + (minutos / 60);
+                } else {
+                    match = tiempo.match(/(\d+\.?\d*)/);
+                    if (match) {
+                        horasDecimal = parseFloat(match[1]) || 0;
+                    }
+                }
+            }
+            
+            return horasDecimal > 0 && !isNaN(horasDecimal) ? horasDecimal : 0;
+        }
+        
+        function actualizarResumenEjecutivo() {
+            const claves = Object.keys(todosDatos[0] || {});
+            
+            const totalActividades = todosDatos.length;
+            
+            let totalHoras = 0;
+            todosDatos.forEach(fila => {
+                const horaInicio = fila[claves[2]] || '';
+                const horaFin = fila[claves[3]] || '';
+                const tiempoTotal = fila[claves[4]] || '';
+                totalHoras += calcularHorasReales(horaInicio, horaFin, tiempoTotal);
+            });
+            
+            const diasUnicos = new Set(todosDatos.map(fila => {
+                const fechaStr = fila[claves[1]] || '';
+                const parteFecha = fechaStr.split(' ')[0];
+                return parteFecha;
+            })).size;
+            const promedioHorasPorDia = diasUnicos > 0 ? totalHoras / diasUnicos : 0;
+            
+            const conteoEmpleados = obtenerConteoEmpleadosActividades(todosDatos);
+            const masActivo = Object.keys(conteoEmpleados).reduce((a, b) => 
+                conteoEmpleados[a] > conteoEmpleados[b] ? a : b, ''
+            );
+            
+            const conteoActividades = {};
+            todosDatos.forEach(fila => {
+                const actividad = fila[claves[8]] || '';
+                if (actividad.trim()) {
+                    conteoActividades[actividad] = (conteoActividades[actividad] || 0) + 1;
+                }
+            });
+            const masFrecuente = Object.keys(conteoActividades).reduce((a, b) => 
+                conteoActividades[a] > conteoActividades[b] ? a : b, 'N/A'
+            );
+            
+            document.getElementById('totalActivities').textContent = totalActividades;
+            document.getElementById('totalHours').textContent = 
+                totalHoras === 0 ? '0 hrs' : `${Math.round(totalHoras * 100) / 100} hrs`;
+            document.getElementById('avgHoursPerDay').textContent = 
+                promedioHorasPorDia === 0 ? '0 hrs' : `${Math.round(promedioHorasPorDia * 100) / 100} hrs`;
+            document.getElementById('mostActiveEmployee').textContent = masActivo || 'N/A';
+            document.getElementById('mostFrequentActivity').textContent = 
+                masFrecuente.length > 30 ? masFrecuente.substring(0, 30) + '...' : masFrecuente;
+        }
+        
+        window.exportarReportePDF = function() {
+            if (todosDatos.length === 0) {
+                mostrarEstado('No hay datos para exportar', 'error');
+                return;
+            }
+            
+            mostrarEstado('Generando reporte PDF... Por favor espera', 'success');
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const fechaActual = new Date().toLocaleDateString('es-AR');
+            const horaActual = new Date().toLocaleTimeString('es-AR');
+            
+            doc.setFontSize(20);
+            doc.setTextColor(0, 0, 0);
+            doc.text('BIOCANN - REPORTE DE ACTIVIDADES', 20, 25);
+            
+            doc.setFontSize(12);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Generado: ${fechaActual} ${horaActual}`, 20, 35);
+            
+            doc.setDrawColor(199, 198, 197);
+            doc.setLineWidth(1);
+            doc.line(20, 40, 190, 40);
+            
+            let yPosition = 55;
+            
+            doc.setFontSize(16);
+            doc.setTextColor(0, 0, 0);
+            doc.text('RESUMEN EJECUTIVO', 20, yPosition);
+            yPosition += 15;
+            
+            const claves = Object.keys(todosDatos[0] || {});
+            
+            const totalActividades = todosDatos.length;
+            
+            let totalHoras = 0;
+            todosDatos.forEach(fila => {
+                const horaInicio = fila[claves[2]] || '';
+                const horaFin = fila[claves[3]] || '';
+                const tiempoTotal = fila[claves[4]] || '';
+                totalHoras += calcularHorasReales(horaInicio, horaFin, tiempoTotal);
+            });
+            
+            const diasUnicos = new Set(todosDatos.map(fila => {
+                const fechaStr = fila[claves[1]] || '';
+                return fechaStr.split(' ')[0];
+            })).size;
+            const promedioHorasPorDia = diasUnicos > 0 ? totalHoras / diasUnicos : 0;
+            
+            const conteoEmpleados = obtenerConteoEmpleadosActividades(todosDatos);
+            const masActivo = Object.keys(conteoEmpleados).reduce((a, b) => 
+                conteoEmpleados[a] > conteoEmpleados[b] ? a : b, ''
+            );
+            
+            doc.setFontSize(11);
+            doc.setTextColor(50, 50, 50);
+            
+            const metricas = [
+                `Total de Actividades: ${totalActividades}`,
+                `Total de Horas Trabajadas: ${Math.round(totalHoras * 100) / 100} hrs`,
+                `Promedio de Horas por Dia: ${Math.round(promedioHorasPorDia * 100) / 100} hrs`,
+                `Empleado Mas Activo: ${masActivo}`,
+                `Empleados: ${obtenerEmpleadosUnicos(todosDatos)}`,
+                `Dias con Actividad Registrada: ${diasUnicos}`
+            ];
+            
+            metricas.forEach(metrica => {
+                doc.text(`• ${metrica}`, 25, yPosition);
+                yPosition += 8;
+            });
+            
+            yPosition += 15;
+            
+            doc.setFontSize(16);
+            doc.setTextColor(0, 0, 0);
+            doc.text('ULTIMAS 10 ACTIVIDADES REGISTRADAS', 20, yPosition);
+            yPosition += 20;
+            
+            const actividadesRecientes = datosFiltrados.slice(0, 10);
+            
+            actividadesRecientes.forEach((fila, index) => {
+                const fecha = fila[claves[1]] || '';
+                const empleado = fila[claves[6]] || '';
+                const horaInicio = fila[claves[2]] || '';
+                const horaFin = fila[claves[3]] || '';
+                const estado = fila[claves[4]] || '';
+                const detalle = fila[claves[5]] || '';
+                const actividad = fila[claves[8]] || '';
+                
+                // Fecha - Actividad
+                doc.setFontSize(14);
+                doc.setTextColor(100, 100, 100);
+                const fechaCorta = fecha.split(' ')[0];
+                const actividadCorta = actividad.length > 50 ? actividad.substring(0, 50) + '...' : actividad;
+                doc.text(`${fechaCorta} - ${actividadCorta}`, 20, yPosition);
+                yPosition += 10;
+                
+                // Responsable
+                doc.setFontSize(12);
+                doc.setTextColor(0, 0, 0);
+                doc.text(`Responsable: ${empleado}`, 25, yPosition);
+                yPosition += 8;
+                
+                // Estado
+                doc.setFontSize(10);
+                doc.setTextColor(0, 0, 0);
+                doc.text(`Estado: ${estado}`, 25, yPosition);
+                yPosition += 6;
+                
+                // Duración calculada
+                const duracionCalculada = calcularDuracionTexto(horaInicio, horaFin);
+                doc.text(`Duración: ${duracionCalculada}`, 25, yPosition);
+                yPosition += 8;
+                
+                // Descripción completa
+                doc.setFontSize(9);
+                doc.setTextColor(0, 0, 0);
+                
+                let descripcionCompleta = actividad;
+                if (detalle && detalle.trim() !== '') {
+                    descripcionCompleta += ` - ${detalle}`;
+                }
+                
+                const descripcion = descripcionCompleta.length > 80 ? 
+                    doc.splitTextToSize(descripcionCompleta, 160) : 
+                    [descripcionCompleta];
+                
+                descripcion.forEach(linea => {
+                    doc.text(linea, 25, yPosition);
+                    yPosition += 6;
+                });
+                
+                yPosition += 8;
+                
+                if (yPosition > 250) {
+                    doc.addPage();
+                    yPosition = 20;
+                }
+            });
+            
+            // Función para calcular duración
+            function calcularDuracionTexto(horaInicio, horaFin) {
+                if (!horaInicio || !horaFin || !horaInicio.trim() || !horaFin.trim()) {
+                    return 'No disponible';
+                }
+                
+                try {
+                    const inicio = convertirHoraAMinutos(horaInicio.trim());
+                    const fin = convertirHoraAMinutos(horaFin.trim());
+                    
+                    if (inicio !== null && fin !== null) {
+                        let diferencia = fin - inicio;
+                        
+                        if (diferencia < 0) {
+                            diferencia += 24 * 60;
+                        }
+                        
+                        const horas = Math.floor(diferencia / 60);
+                        const minutos = diferencia % 60;
+                        
+                        if (horas > 0 && minutos > 0) {
+                            return `${horas} horas ${minutos} minutos`;
+                        } else if (horas > 0) {
+                            return `${horas} horas`;
+                        } else if (minutos > 0) {
+                            return `${minutos} minutos`;
+                        }
+                    }
+                } catch (error) {
+                    console.log('Error calculando duración:', error);
+                }
+                
+                return 'No calculable';
+            }
+            
+            // FOOTER
+            const totalPaginas = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPaginas; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(150, 150, 150);
+                doc.text(`Biocann - Sistema de Actividades | Pagina ${i} de ${totalPaginas}`, 20, 285);
+                doc.text(`Coordinador: Lucas Del Aguila | ${fechaActual}`, 20, 292);
+            }
+            
+            const nombreArchivo = `Biocann_Actividades_${new Date().toISOString().split('T')[0]}.pdf`;
+            doc.save(nombreArchivo);
+            
+            mostrarEstado('✅ Reporte PDF generado exitosamente', 'success');
+        };
+
+        // INICIALIZACIÓN
+        document.addEventListener('DOMContentLoaded', function() {
+            // Cerrar modal con ESC
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    const statsModal = document.getElementById('statsModal');
+                    if (statsModal && statsModal.classList.contains('show')) {
+                        window.cerrarEstadisticas();
+                    }
+                }
+            });
+            
+            // Cerrar modal clickeando fuera
+            const statsModal = document.getElementById('statsModal');
+            if (statsModal) {
+                statsModal.onclick = function(event) {
+                    if (event.target === statsModal) {
+                        window.cerrarEstadisticas();
+                    }
+                }
+                
+                const modalContainer = statsModal.querySelector('.stats-modal-container');
+                if (modalContainer) {
+                    modalContainer.onclick = function(event) {
+                        event.stopPropagation();
+                    }
+                }
+            }
+            
+            // Cargar datos automáticamente después de 1 segundo
+            setTimeout(() => {
+                mostrarEstado('🔄 Cargando datos automáticamente...', 'success');
+                window.cargarDatos();
+            }, 1000);
+        });
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biocann - Sistema de Consulta de Actividades</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', Arial, sans-serif;
+            background: #181819;
+            color: #ffffff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px 10px;
+        }
+
+        /* Botón Volver al Dashboard */
+        .back-dashboard-btn {
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            background: #232323;
+            color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+            padding: 12px 22px 12px 18px;
+            font-size: 1.08rem;
+            font-weight: 500;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000;
+            transition: all 0.18s ease;
+            border: 1px solid #717170;
+        }
+        .back-dashboard-btn:hover {
+            background: #ffffff;
+            color: #181819;
+            box-shadow: 0 4px 16px rgba(255,255,255,0.16);
+            transform: scale(1.04) translateY(-2px);
+        }
+        .back-dashboard-btn i {
+            font-size: 1.2em;
+        }
+
+        /* Header */
+        .app-header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: #232323;
+            border-radius: 15px;
+            padding: 32px 20px 24px 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+        .app-header h1 {
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 2.4rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        .app-header h1 i {
+            color: #ffffff;
+        }
+        .app-header .subtitle {
+            color: #ffffff;
+            font-size: 1.1rem;
+            margin: 0;
+            opacity: 0.8;
+        }
+
+        /* Panel de control */
+        .control-panel {
+            background: #232323;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .control-panel-title {
+            color: #ffffff;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            background: #181819;
+            color: #ffffff;
+            border: 1px solid #717170;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background: #ffffff;
+            color: #181819;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255,255,255,0.2);
+        }
+
+        .btn-secondary {
+            background: #232323;
+            border: 1px solid #717170;
+        }
+
+        .btn-secondary:hover {
+            background: #ffffff;
+            color: #181819;
+        }
+
+        /* Panel de estadísticas */
+        .stats-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: #232323;
+            border-radius: 15px;
+            padding: 25px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: #181819;
+            background: #ffffff;
+        }
+
+        .stat-content h3 {
+            font-size: 0.9rem;
+            color: #ffffff;
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+
+        .stat-content p {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        /* Panel de filtros */
+        .filters-panel {
+            background: #232323;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .filter-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .filter-group label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #ffffff;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            padding: 12px 15px;
+            background: #181819;
+            border: 1px solid #717170;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #ffffff;
+            transition: border-color 0.3s ease;
+        }
+
+        .filter-group input:focus,
+        .filter-group select:focus {
+            outline: none;
+            border-color: #ffffff;
+        }
+
+        /* Sección de tabla */
+        .table-section {
+            background: #232323;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            margin-bottom: 30px;
+        }
+
+        .table-header h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #232323;
+        }
+
+        thead {
+            background: #181819;
+        }
+
+        th {
+            padding: 15px 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #ffffff;
+            border-bottom: 2px solid #717170;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #717170;
+            font-size: 0.9rem;
+            color: #ffffff;
+            vertical-align: top;
+        }
+
+        tbody tr:hover {
+            background: #ffffff;
+        }
+
+        tbody tr:hover td {
+            color: #181819;
+        }
+
+        /* Imágenes */
+        .image-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            align-items: flex-start;
+        }
+
+        .image-thumbnail {
+            width: 30px;
+            height: 30px;
+            object-fit: cover;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 4px;
+            margin-bottom: 4px;
+            border: 1px solid #717170;
+            transition: all 0.2s ease;
+        }
+
+        .image-thumbnail:hover {
+            border-color: #ffffff;
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(255,255,255,0.5);
+        }
+
+        .image-placeholder {
+            width: 30px;
+            height: 30px;
+            background: #181819;
+            border: 1px solid #717170;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 12px;
+            color: #ffffff;
+            transition: all 0.2s ease;
+            margin-right: 4px;
+            margin-bottom: 4px;
+        }
+
+        .image-placeholder:hover {
+            background: #ffffff;
+            color: #181819;
+            border-color: #ffffff;
+        }
+
+        /* Modal de imágenes */
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(24,24,25,0.95);
+            backdrop-filter: blur(5px);
+            opacity: 0;
+            transition: all 0.3s ease-in-out;
+        }
+
+        .image-modal.show {
+            opacity: 1;
+        }
+
+        .image-modal-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.8);
+            width: 95%;
+            max-width: 900px;
+            max-height: 90vh;
+            transition: all 0.3s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .image-modal.show .image-modal-container {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .image-modal-content {
+            width: 100%;
+            max-height: 80vh;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+            transition: all 0.4s ease-in-out;
+            opacity: 0;
+            transform: scale(0.9);
+        }
+
+        .image-modal-content.loaded {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .image-modal-content.changing {
+            opacity: 0.3;
+            transform: scale(0.95);
+        }
+
+        .image-close {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            color: #ffffff;
+            font-size: 35px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 2002;
+            background: rgba(35,35,35,0.9);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .image-close:hover {
+            background: rgba(255,255,255,0.8);
+            border-color: rgba(255,255,255,0.8);
+            transform: scale(1.1) rotate(90deg);
+            color: #181819;
+        }
+
+        .image-modal-caption {
+            margin: 15px auto 0;
+            width: 90%;
+            max-width: 700px;
+            text-align: center;
+            color: #ffffff;
+            padding: 12px 20px;
+            background: rgba(35,35,35,0.8);
+            border-radius: 25px;
+            font-size: 13px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .image-prev, .image-next {
+            cursor: pointer;
+            position: absolute;
+            top: 50%;
+            width: 60px;
+            height: 60px;
+            margin-top: -30px;
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 24px;
+            transition: all 0.3s ease;
+            border-radius: 50%;
+            user-select: none;
+            background: rgba(35,35,35,0.8);
+            backdrop-filter: blur(10px);
+            z-index: 2001;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(255,255,255,0.2);
+        }
+
+        .image-prev {
+            left: 20px;
+        }
+
+        .image-next {
+            right: 20px;
+        }
+
+        .image-prev:hover, .image-next:hover {
+            background: rgba(255,255,255,0.8);
+            border-color: rgba(255,255,255,0.8);
+            transform: scale(1.2);
+            color: #181819;
+        }
+
+        /* Indicadores de imagen */
+        .image-indicators {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 2001;
+        }
+
+        .image-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.4);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .image-indicator.active {
+            background: #ffffff;
+            transform: scale(1.3);
+            box-shadow: 0 0 10px rgba(255,255,255,0.6);
+        }
+
+        /* Spinner de carga */
+        .image-loading-spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top: 4px solid #ffffff;
+            animation: spin 1s linear infinite;
+            z-index: 2001;
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        /* Estados de carga y error */
+        .loading {
+            text-align: center;
+            padding: 30px;
+            color: #ffffff;
+            font-style: italic;
+        }
+
+        .status {
+            margin: 15px 0;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            display: none;
+            font-size: 0.9rem;
+        }
+
+        .status.success {
+            background: rgba(255,255,255,0.1);
+            color: #ffffff;
+            border: 1px solid #ffffff;
+        }
+
+        .status.error {
+            background: rgba(255,255,255,0.1);
+            color: #ff6b6b;
+            border: 1px solid #ff6b6b;
+        }
+
+        /* Modal de Estadísticas */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(24,24,25,0.95);
+            opacity: 0;
+            transition: all 0.3s ease-in-out;
+        }
+
+        .modal.show {
+            opacity: 1;
+        }
+
+        .stats-modal-container {
+            position: absolute;
+            top: 5%;
+            left: 5%;
+            right: 5%;
+            bottom: 5%;
+            background: #232323;
+            border-radius: 15px;
+            border: 1px solid #717170;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stats-modal-content {
+            padding: 25px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .stats-header {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #717170;
+        }
+
+        .stats-header h2 {
+            color: #ffffff;
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        .stats-card-large {
+            background: #181819;
+            border: 1px solid #717170;
+            border-radius: 12px;
+            padding: 20px;
+            min-height: 300px;
+        }
+
+        .stats-card-large h3 {
+            color: #ffffff;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+            text-align: center;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 250px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stats-summary {
+            background: #181819;
+            border: 1px solid #717170;
+            border-radius: 12px;
+            padding: 25px;
+        }
+
+        .stats-summary h3 {
+            color: #ffffff;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #717170;
+        }
+
+        .summary-item:last-child {
+            border-bottom: none;
+        }
+
+        .summary-label {
+            color: #ffffff;
+            font-size: 0.9rem;
+        }
+
+        .summary-value {
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .close {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            color: #ffffff;
+            font-size: 35px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1002;
+            background: rgba(35,35,35,0.9);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .close:hover {
+            background: rgba(255,255,255,0.8);
+            color: #181819;
+            transform: scale(1.1);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 15px 5px;
+            }
+            
+            .stats-panel {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .filter-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .table-container {
+                overflow-x: auto;
+            }
+            
+            table {
+                min-width: 700px;
+            }
+
+            .control-buttons {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                text-align: center;
+                justify-content: center;
+            }
+            
+            .app-header h1 {
+                font-size: 2rem;
+            }
+            
+            .back-dashboard-btn {
+                padding: 10px 16px 10px 12px;
+                font-size: 0.95rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-panel {
+                grid-template-columns: 1fr;
+            }
+            
+            .app-header h1 {
+                font-size: 1.8rem;
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="../index.html" class="back-dashboard-btn">
+        <i class="fas fa-home"></i> Volver al dashboard
+    </a>
+    
+    <div class="container">
+        <div class="app-header">
+            <h1><i class="fas fa-tasks"></i> Sistema de Actividades</h1>
+            <p class="subtitle">Gestión y seguimiento de actividades de empleados</p>
+        </div>
+
+        <div class="control-panel">
+            <div class="control-panel-title">
+                <i class="fas fa-control"></i> Panel de Control
+            </div>
+            <div class="control-buttons">
+                <button onclick="window.cargarDatos()" class="btn">
+                    <i class="fas fa-sync-alt"></i> Recargar datos
+                </button>
+                <button onclick="window.exportarDatos()" class="btn btn-secondary">
+                    <i class="fas fa-download"></i> Exportar CSV
+                </button>
+                <button onclick="window.abrirEstadisticas()" class="btn" style="background: #ffffff; color: #181819;">
+                    <i class="fas fa-chart-pie"></i> Ver Estadísticas
+                </button>
+            </div>
+        </div>
+
+        <div class="stats-panel">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-list-ul"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>Total Registros</h3>
+                    <p id="totalRecords">-</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-calendar-day"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>Registros Hoy</h3>
+                    <p id="todayRecords">-</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>Empleados Activos</h3>
+                    <p id="uniqueEmployees">-</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>Última Actualización</h3>
+                    <p id="lastUpdate">-</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="filters-panel">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="filterDate"><i class="fas fa-calendar"></i> Filtrar por fecha:</label>
+                    <input type="date" id="filterDate" onchange="window.aplicarFiltros()">
+                    <div id="fechasDisponibles" style="font-size: 0.8rem; color: #ffffff; margin-top: 5px; display: none; opacity: 0.7;">
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label for="sortOrder"><i class="fas fa-sort"></i> Ordenar por fecha:</label>
+                    <select id="sortOrder" onchange="window.aplicarFiltros()">
+                        <option value="desc">Más nuevo primero</option>
+                        <option value="asc">Más viejo primero</option>
+                    </select>
+                </div>
+            </div>
+            <div class="filter-group">
+                <button onclick="window.limpiarFiltros()" class="btn btn-secondary" style="width: 100%;">
+                    <i class="fas fa-eraser"></i> Limpiar filtros
+                </button>
+            </div>
+        </div>
+
+        <div class="table-section">
+            <div class="table-header">
+                <h3><i class="fas fa-table"></i> Registro de Actividades</h3>
+            </div>
+            <div class="table-container">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th><i class="fas fa-calendar-alt"></i> Fecha/Hora</th>
+                            <th><i class="fas fa-user"></i> Empleado</th>
+                            <th><i class="fas fa-play"></i> Hora inicio</th>
+                            <th><i class="fas fa-stop"></i> Hora finalización</th>
+                            <th><i class="fas fa-info-circle"></i> Estado</th>
+                            <th><i class="fas fa-images"></i> Imágenes</th>
+                            <th><i class="fas fa-tasks"></i> Actividad</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td colspan="7" class="loading">
+                                <i class="fas fa-spinner fa-spin"></i> Cargando datos automáticamente...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="status" class="status"></div>
+    </div>
+
+    <!-- MODAL DE IMÁGENES -->
+    <div id="imageModal" class="image-modal">
+        <div class="image-modal-container">
+            <span class="image-close" onclick="window.closeImageModal()">×</span>
+            <span class="image-prev" onclick="window.showPrevImage()">❮</span>
+            <img class="image-modal-content" id="modalImage">
+            <span class="image-next" onclick="window.showNextImage()">❯</span>
+            <div id="imageCaption" class="image-modal-caption"></div>
+        </div>
+    </div>
+
+    <!-- MODAL DE ESTADÍSTICAS -->
+    <div id="statsModal" class="modal">
+        <div class="stats-modal-container">
+            <span class="close" onclick="window.cerrarEstadisticas()">×</span>
+            <div class="stats-modal-content">
+                <div class="stats-header">
+                    <h2><i class="fas fa-chart-bar"></i> Dashboard de Estadísticas - Biocann</h2>
+                    <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+                        <button onclick="window.actualizarEstadisticas()" class="btn">
+                            <i class="fas fa-sync-alt"></i> Actualizar
+                        </button>
+                        <button onclick="window.exportarReportePDF()" class="btn btn-secondary">
+                            <i class="fas fa-file-pdf"></i> Exportar PDF
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stats-card-large">
+                        <h3><i class="fas fa-chart-pie"></i> Actividades por Empleado</h3>
+                        <div class="chart-container">
+                            <canvas id="chartActividades"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="stats-summary">
+                        <h3><i class="fas fa-clipboard-list"></i> Resumen Ejecutivo</h3>
+                        <div id="executiveSummary">
+                            <div class="summary-item">
+                                <span class="summary-label">Total de Actividades:</span>
+                                <span class="summary-value" id="totalActivities">-</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">Horas Totales Trabajadas:</span>
+                                <span class="summary-value" id="totalHours">-</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">Promedio Horas/Día:</span>
+                                <span class="summary-value" id="avgHoursPerDay">-</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">Empleado Más Activo:</span>
+                                <span class="summary-value" id="mostActiveEmployee">-</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">Actividad Más Frecuente:</span>
+                                <span class="summary-value" id="mostFrequentActivity">-</span>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biocann - Sistema de gestión</title>
+    <meta name="description" content="Sistema completo de gestión Biocann">
+    <meta name="theme-color" content="#4CAF50">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Biocann">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: #f4f4f4;
+            font-family: 'Roboto', Arial, sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            margin-top: 60px;
+            font-size: 2.5rem;
+            color: #222;
+            letter-spacing: 1px;
+            text-align: center;
+        }
+        .dashboard {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            gap: 40px;
+            margin-top: 80px;
+        }
+        .dashboard-btn {
+            background: #fff;
+            border: none;
+            border-radius: 18px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08), 0 1.5px 4px rgba(0,0,0,0.06);
+            padding: 40px 50px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: transform 0.18s cubic-bezier(.4,2,.6,1), box-shadow 0.18s;
+            outline: none;
+            min-width: 220px;
+        }
+        .dashboard-btn:active, .dashboard-btn:focus, .dashboard-btn:hover {
+            transform: scale(1.06) translateY(-4px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.13), 0 2px 8px rgba(0,0,0,0.10);
+            background: #eaeaea;
+        }
+        .dashboard-btn svg {
+            width: 56px;
+            height: 56px;
+            margin-bottom: 18px;
+            fill: #222;
+        }
+        .dashboard-btn span {
+            font-size: 1.2rem;
+            color: #222;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        @media (max-width: 700px) {
+            .dashboard {
+                flex-direction: column;
+                gap: 30px;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Biocann - Sistema de gestión</h1>
+    <div class="dashboard">
+        <button class="dashboard-btn" onclick="window.location.href='bioform/reg_actividades.html'">
+            <!-- Ícono de lista/registro -->
+            <svg viewBox="0 0 48 48"><rect x="8" y="10" width="32" height="4" rx="2"/><rect x="8" y="22" width="32" height="4" rx="2"/><rect x="8" y="34" width="32" height="4" rx="2"/></svg>
+            <span>Registro de actividades</span>
+        </button>
+        <button class="dashboard-btn" onclick="window.location.href='mod_supercritico/index.html'">
+            <!-- Ícono de laboratorio/tubo -->
+            <svg viewBox="0 0 48 48"><rect x="20" y="6" width="8" height="24" rx="4"/><path d="M24 30v8" stroke="#222" stroke-width="4" stroke-linecap="round"/><ellipse cx="24" cy="40" rx="10" ry="4"/></svg>
+            <span>Extracción por Supercrítico</span>
+        </button>
+        <button class="dashboard-btn" onclick="window.location.href='mod_nc/index.html'">
+            <!-- Ícono de advertencia/no conformidad -->
+            <svg viewBox="0 0 48 48">
+                <path d="M24 6L6 42h36L24 6z" stroke="#222" stroke-width="3" fill="none"/>
+                <circle cx="24" cy="32" r="2" fill="#222"/>
+                <rect x="22" y="20" width="4" height="8" rx="2" fill="#222"/>
+            </svg>
+            <span>No Conformidades</span>
+        </button>
+        <button class="dashboard-btn" onclick="window.location.href='mod_inv/index.html'">
+            <!-- Ícono de inventario/herramientas -->
+            <svg viewBox="0 0 48 48">
+                <path d="M12 34l8-8-4-4-8 8v4h4z" fill="#222"/>
+                <path d="M20 20l8-8 4 4-8 8-4-4z" fill="#222"/>
+                <circle cx="36" cy="12" r="6" stroke="#222" stroke-width="2" fill="none"/>
+                <path d="M30 18l-6 6" stroke="#222" stroke-width="2"/>
+                <rect x="6" y="38" width="36" height="4" rx="2" fill="#222"/>
+            </svg>
+            <span>Inventario</span>
+        </button>
+    </div>
+
+    <script>
+        // Registrar Service Worker para PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('SW registrado: ', registration);
+                    })
+                    .catch((registrationError) => {
+                        console.log('SW registro falló: ', registrationError);
+                    });
+            });
+        }
+
+        // Mostrar banner de instalación
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // Crear banner de instalación
+            const installBanner = document.createElement('div');
+            installBanner.id = 'install-banner';
+            installBanner.innerHTML = `
+                <div style="position: fixed; bottom: 20px; left: 20px; right: 20px; background: #4CAF50; color: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 1000; display: flex; justify-content: space-between; align-items: center;">
+                    <span>Instalar app Biocann</span>
+                    <div>
+                        <button onclick="installApp()" style="background: white; color: #4CAF50; border: none; padding: 8px 16px; border-radius: 5px; margin-right: 10px; cursor: pointer;">Instalar</button>
+                        <button onclick="dismissBanner()" style="background: transparent; color: white; border: 1px solid white; padding: 8px 16px; border-radius: 5px; cursor: pointer;">Cerrar</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(installBanner);
+        });
+
+        function installApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('Usuario aceptó instalar la app');
+                    }
+                    deferredPrompt = null;
+                    dismissBanner();
+                });
+            }
+        }
+
+        function dismissBanner() {
+            const banner = document.getElementById('install-banner');
+            if (banner) {
+                banner.remove();
+            }
+        }
+    </script>
+</body>
+</html> 

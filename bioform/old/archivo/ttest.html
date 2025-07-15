@@ -1,0 +1,488 @@
+// Los eventos de teclado se manejan ahora en handleModalKeyDown
+        });
+        
+        // FUNCIONES DE ESTADÍSTICAS
+        function openStatsModal() {
+            if (allData.length === 0) {
+                mostrarEstado('Primero debes cargar los datos para ver estadísticas', 'error');
+                return;
+            }
+            
+            const modal = document.getElementById('statsModal');
+            modal.style.display = 'block';
+            modal.offsetHeight; // Forzar reflow
+            modal.classList.add('show');
+            
+            prepareStatsData();
+            populateEmployeeFilter();
+            setDefaultDateFilters();
+            updateStatsCharts();
+        }
+        
+        function closeStatsModal() {
+            const modal = document.getElementById('statsModal');
+            modal.classList.remove('show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+        }
+        
+        function prepareStatsData() {
+            const keys = Object.keys(allData[0] || {});
+            
+            statsData = allData.map(row => {
+                const fechaStr = row[keys[1]] || '';
+                const empleado = row[keys[6]] || '';
+                const horaInicio = row[keys[2]] || '';
+                const horaFin = row[keys[3]] || '';
+                const tiempoTotal = row[keys[4]] || '';
+                const actividad = row[keys[8]] || '';
+                
+                // Calcular horas trabajadas en formato decimal
+                let horasDecimal = 0;
+                if (tiempoTotal) {
+                    const tiempoMatch = tiempoTotal.match(/(\d+):(\d+)/);
+                    if (tiempoMatch) {
+                        const horas = parseInt(tiempoMatch[1]);
+                        const minutos = parseInt(tiempoMatch[2]);
+                        horasDecimal = horas + (minutos / 60);
+                    }
+                }
+                
+                return {
+                    fecha: parseDateForComparison(fechaStr),
+                    fechaStr: fechaStr,
+                    empleado: empleado,
+                    horaInicio: horaInicio,
+                    horaFin: horaFin,
+                    tiempoTotal: tiempoTotal,
+                    horasDecimal: horasDecimal,
+                    actividad: actividad
+                };
+            }).filter(item => item.fecha && item.empleado && item.horasDecimal > 0);
+            
+            filteredStatsData = [...statsData];
+        }
+        
+        function populateEmployeeFilter() {
+            const employeeSelect = document.getElementById('statsEmployee');
+            const employees = [...new Set(statsData.map(item => item.empleado))].sort();
+            
+            employeeSelect.innerHTML = '<option value="">Todos los empleados</option>';
+            employees.forEach(emp => {
+                employeeSelect.innerHTML += `<option value="${emp}">${emp}</option>`;
+            });
+        }
+        
+        function setDefaultDateFilters() {
+            if (statsData.length === 0) return;
+            
+            const dates = statsData.map(item => item.fecha).sort((a, b) => a - b);
+            const minDate = dates[0];
+            const maxDate = dates[dates.length - 1];
+            
+            document.getElementById('statsDateFrom').value = formatToYYYYMMDD(minDate);
+            document.getElementById('statsDateTo').value = formatToYYYYMMDD(maxDate);
+        }
+        
+        function updateStatsCharts() {
+            applyStatsFilters();
+            
+            if (filteredStatsData.length === 0) {
+                mostrarEstado('No hay datos para mostrar con los filtros aplicados', 'error');
+                return;
+            }
+            
+            renderEmployeeActivitiesChart();
+            renderDailyHoursChart();
+            renderEmployeeTimeDistribution();
+            renderWeeklyTrendChart();
+            updateExecutiveSummary();
+        }
+        
+        function applyStatsFilters() {
+            const dateFrom = document.getElementById('statsDateFrom').value;
+            const dateTo = document.getElementById('statsDateTo').value;
+            const selectedEmployee = document.getElementById('statsEmployee').value;
+            
+            filteredStatsData = statsData.filter(item => {
+                let matches = true;
+                
+                if (dateFrom) {
+                    const fromDate = new Date(dateFrom);
+                    if (item.fecha < fromDate) matches = false;
+                }
+                
+                if (dateTo) {
+                    const toDate = new Date(dateTo);
+                    toDate.setHours(23, 59, 59, 999);
+                    if (item.fecha > toDate) matches = false;
+                }
+                
+                if (selectedEmployee && item.empleado !== selectedEmployee) {
+                    matches = false;
+                }
+                
+                return matches;
+            });
+        }
+        
+        function renderEmployeeActivitiesChart() {
+            const employeeStats = {};
+            
+            filteredStatsData.forEach(item => {
+                if (!employeeStats[item.empleado]) {
+                    employeeStats[item.empleado] = { actividades: 0, horas: 0 };
+                }
+                employeeStats[item.empleado].actividades++;
+                employeeStats[item.empleado].horas += item.horasDecimal;
+            });
+            
+            const chartData = Object.keys(employeeStats).map(emp => ({
+                empleado: emp.length > 15 ? emp.substring(0, 15) + '...' : emp,
+                actividades: employeeStats[emp].actividades,
+                horas: Math.round(employeeStats[emp].horas * 10) / 10
+            }));
+            
+            const BarChart = Recharts.BarChart;
+            const Bar = Recharts.Bar;
+            const XAxis = Recharts.XAxis;
+            const YAxis = Recharts.YAxis;
+            const CartesianGrid = Recharts.CartesianGrid;
+            const Tooltip = Recharts.Tooltip;
+            const Legend = Recharts.Legend;
+            const ResponsiveContainer = Recharts.ResponsiveContainer;
+            
+            const chart = React.createElement(ResponsiveContainer, {
+                width: '100%',
+                height: 250
+            }, React.createElement(BarChart, {
+                data: chartData,
+                margin: { top: 5, right: 30, left: 20, bottom: 5 }
+            }, [
+                React.createElement(CartesianGrid, { key: 'grid', strokeDasharray: '3 3', stroke: '#333' }),
+                React.createElement(XAxis, { key: 'x', dataKey: 'empleado', stroke: '#ccc', fontSize: 11 }),
+                React.createElement(YAxis, { key: 'y', stroke: '#ccc', fontSize: 11 }),
+                React.createElement(Tooltip, { 
+                    key: 'tooltip',
+                    contentStyle: { backgroundColor: '#1a1a1a', border: '1px solid #333', borderRadius: '4px' },
+                    labelStyle: { color: '#fff' }
+                }),
+                React.createElement(Legend, { key: 'legend' }),
+                React.createElement(Bar, { key: 'bar', dataKey: 'actividades', fill: '#00ff00', name: 'Actividades' })
+            ]));
+            
+            ReactDOM.render(chart, document.getElementById('statsRoot1'));
+        }
+        
+        function renderDailyHoursChart() {
+            const dailyStats = {};
+            
+            filteredStatsData.forEach(item => {
+                const dateKey = formatToYYYYMMDD(item.fecha);
+                if (!dailyStats[dateKey]) {
+                    dailyStats[dateKey] = 0;
+                }
+                dailyStats[dateKey] += item.horasDecimal;
+            });
+            
+            const chartData = Object.keys(dailyStats)
+                .sort()
+                .map(date => ({
+                    fecha: date,
+                    horas: Math.round(dailyStats[date] * 10) / 10
+                }));
+            
+            const LineChart = Recharts.LineChart;
+            const Line = Recharts.Line;
+            const XAxis = Recharts.XAxis;
+            const YAxis = Recharts.YAxis;
+            const CartesianGrid = Recharts.CartesianGrid;
+            const Tooltip = Recharts.Tooltip;
+            const ResponsiveContainer = Recharts.ResponsiveContainer;
+            
+            const chart = React.createElement(ResponsiveContainer, {
+                width: '100%',
+                height: 250
+            }, React.createElement(LineChart, {
+                data: chartData,
+                margin: { top: 5, right: 30, left: 20, bottom: 5 }
+            }, [
+                React.createElement(CartesianGrid, { key: 'grid', strokeDasharray: '3 3', stroke: '#333' }),
+                React.createElement(XAxis, { key: 'x', dataKey: 'fecha', stroke: '#ccc', fontSize: 11 }),
+                React.createElement(YAxis, { key: 'y', stroke: '#ccc', fontSize: 11 }),
+                React.createElement(Tooltip, { 
+                    key: 'tooltip',
+                    contentStyle: { backgroundColor: '#1a1a1a', border: '1px solid #333', borderRadius: '4px' },
+                    labelStyle: { color: '#fff' }
+                }),
+                React.createElement(Line, { 
+                    key: 'line', 
+                    type: 'monotone', 
+                    dataKey: 'horas', 
+                    stroke: '#00ff00', 
+                    strokeWidth: 2,
+                    dot: { fill: '#00ff00', strokeWidth: 2, r: 4 }
+                })
+            ]));
+            
+            ReactDOM.render(chart, document.getElementById('statsRoot2'));
+        }
+        
+        function renderEmployeeTimeDistribution() {
+            const employeeHours = {};
+            
+            filteredStatsData.forEach(item => {
+                if (!employeeHours[item.empleado]) {
+                    employeeHours[item.empleado] = 0;
+                }
+                employeeHours[item.empleado] += item.horasDecimal;
+            });
+            
+            const total = Object.values(employeeHours).reduce((sum, hours) => sum + hours, 0);
+            
+            const chartData = Object.keys(employeeHours).map(emp => ({
+                empleado: emp.length > 12 ? emp.substring(0, 12) + '...' : emp,
+                horas: Math.round(employeeHours[emp] * 10) / 10,
+                porcentaje: Math.round((employeeHours[emp] / total) * 100)
+            }));
+            
+            const PieChart = Recharts.PieChart;
+            const Pie = Recharts.Pie;
+            const Cell = Recharts.Cell;
+            const Tooltip = Recharts.Tooltip;
+            const ResponsiveContainer = Recharts.ResponsiveContainer;
+            
+            const colors = ['#00ff00', '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#fcea2b', '#ff9ff3', '#54a0ff'];
+            
+            const chart = React.createElement(ResponsiveContainer, {
+                width: '100%',
+                height: 250
+            }, React.createElement(PieChart, {}, [
+                React.createElement(Pie, {
+                    key: 'pie',
+                    data: chartData,
+                    cx: '50%',
+                    cy: '50%',
+                    labelLine: false,
+                    label: ({ empleado, porcentaje }) => `${empleado} (${porcentaje}%)`,
+                    outerRadius: 80,
+                    fill: '#8884d8',
+                    dataKey: 'horas'
+                }, chartData.map((entry, index) => 
+                    React.createElement(Cell, { 
+                        key: `cell-${index}`, 
+                        fill: colors[index % colors.length] 
+                    })
+                )),
+                React.createElement(Tooltip, { 
+                    key: 'tooltip',
+                    contentStyle: { backgroundColor: '#1a1a1a', border: '1px solid #333', borderRadius: '4px' },
+                    labelStyle: { color: '#fff' }
+                })
+            ]));
+            
+            ReactDOM.render(chart, document.getElementById('statsRoot3'));
+        }
+        
+        function renderWeeklyTrendChart() {
+            const weeklyStats = {};
+            
+            filteredStatsData.forEach(item => {
+                const weekStart = getWeekStart(item.fecha);
+                const weekKey = formatToYYYYMMDD(weekStart);
+                
+                if (!weeklyStats[weekKey]) {
+                    weeklyStats[weekKey] = { horas: 0, actividades: 0 };
+                }
+                weeklyStats[weekKey].horas += item.horasDecimal;
+                weeklyStats[weekKey].actividades++;
+            });
+            
+            const chartData = Object.keys(weeklyStats)
+                .sort()
+                .map(week => ({
+                    semana: `Sem. ${week.substring(5)}`,
+                    horas: Math.round(weeklyStats[week].horas * 10) / 10,
+                    actividades: weeklyStats[week].actividades
+                }));
+            
+            const LineChart = Recharts.LineChart;
+            const Line = Recharts.Line;
+            const XAxis = Recharts.XAxis;
+            const YAxis = Recharts.YAxis;
+            const CartesianGrid = Recharts.CartesianGrid;
+            const Tooltip = Recharts.Tooltip;
+            const Legend = Recharts.Legend;
+            const ResponsiveContainer = Recharts.ResponsiveContainer;
+            
+            const chart = React.createElement(ResponsiveContainer, {
+                width: '100%',
+                height: 250
+            }, React.createElement(LineChart, {
+                data: chartData,
+                margin: { top: 5, right: 30, left: 20, bottom: 5 }
+            }, [
+                React.createElement(CartesianGrid, { key: 'grid', strokeDasharray: '3 3', stroke: '#333' }),
+                React.createElement(XAxis, { key: 'x', dataKey: 'semana', stroke: '#ccc', fontSize: 11 }),
+                React.createElement(YAxis, { key: 'y', stroke: '#ccc', fontSize: 11 }),
+                React.createElement(Tooltip, { 
+                    key: 'tooltip',
+                    contentStyle: { backgroundColor: '#1a1a1a', border: '1px solid #333', borderRadius: '4px' },
+                    labelStyle: { color: '#fff' }
+                }),
+                React.createElement(Legend, { key: 'legend' }),
+                React.createElement(Line, { 
+                    key: 'line1', 
+                    type: 'monotone', 
+                    dataKey: 'horas', 
+                    stroke: '#00ff00', 
+                    strokeWidth: 2,
+                    name: 'Horas'
+                }),
+                React.createElement(Line, { 
+                    key: 'line2', 
+                    type: 'monotone', 
+                    dataKey: 'actividades', 
+                    stroke: '#ff6b6b', 
+                    strokeWidth: 2,
+                    name: 'Actividades'
+                })
+            ]));
+            
+            ReactDOM.render(chart, document.getElementById('statsRoot4'));
+        }
+        
+        function updateExecutiveSummary() {
+            const totalActivities = filteredStatsData.length;
+            const totalHours = filteredStatsData.reduce((sum, item) => sum + item.horasDecimal, 0);
+            
+            // Calcular días únicos
+            const uniqueDays = new Set(filteredStatsData.map(item => formatToYYYYMMDD(item.fecha))).size;
+            const avgHoursPerDay = uniqueDays > 0 ? totalHours / uniqueDays : 0;
+            
+            // Empleado más activo
+            const employeeActivities = {};
+            filteredStatsData.forEach(item => {
+                employeeActivities[item.empleado] = (employeeActivities[item.empleado] || 0) + 1;
+            });
+            const mostActive = Object.keys(employeeActivities).reduce((a, b) => 
+                employeeActivities[a] > employeeActivities[b] ? a : b, ''
+            );
+            
+            // Actividad más frecuente
+            const activityCount = {};
+            filteredStatsData.forEach(item => {
+                if (item.actividad && item.actividad.trim()) {
+                    activityCount[item.actividad] = (activityCount[item.actividad] || 0) + 1;
+                }
+            });
+            const mostFrequent = Object.keys(activityCount).reduce((a, b) => 
+                activityCount[a] > activityCount[b] ? a : b, 'N/A'
+            );
+            
+            document.getElementById('totalActivities').textContent = totalActivities;
+            document.getElementById('totalHours').textContent = Math.round(totalHours * 10) / 10 + ' hrs';
+            document.getElementById('avgHoursPerDay').textContent = Math.round(avgHoursPerDay * 10) / 10 + ' hrs';
+            document.getElementById('mostActiveEmployee').textContent = mostActive || 'N/A';
+            document.getElementById('mostFrequentActivity').textContent = 
+                mostFrequent.length > 30 ? mostFrequent.substring(0, 30) + '...' : mostFrequent;
+        }
+        
+        function getWeekStart(date) {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Lunes como primer día
+            return new Date(d.setDate(diff));
+        }
+        
+        function exportStatsReport() {
+            if (filteredStatsData.length === 0) {
+                mostrarEstado('No hay datos para exportar', 'error');
+                return;
+            }
+            
+            const dateFrom = document.getElementById('statsDateFrom').value || 'inicio';
+            const dateTo = document.getElementById('statsDateTo').value || 'fin';
+            const employee = document.getElementById('statsEmployee').value || 'todos';
+            
+            let reportContent = `REPORTE DE ESTADÍSTICAS BIOCANN\n`;
+            reportContent += `Período: ${dateFrom} - ${dateTo}\n`;
+            reportContent += `Empleado: ${employee}\n`;
+            reportContent += `Generado: ${new Date().toLocaleString('es-AR')}\n\n`;
+            
+            reportContent += `RESUMEN EJECUTIVO:\n`;
+            reportContent += `- Total Actividades: ${filteredStatsData.length}\n`;
+            reportContent += `- Total Horas: ${Math.round(filteredStatsData.reduce((sum, item) => sum + item.horasDecimal, 0) * 10) / 10}\n`;
+            
+            // Calcular días únicos para promedio
+            const uniqueDays = new Set(filteredStatsData.map(item => formatToYYYYMMDD(item.fecha))).size;
+            const totalHours = filteredStatsData.reduce((sum, item) => sum + item.horasDecimal, 0);
+            const avgHoursPerDay = uniqueDays > 0 ? totalHours / uniqueDays : 0;
+            reportContent += `- Promedio Horas/Día: ${Math.round(avgHoursPerDay * 10) / 10}\n\n`;
+            
+            // Estadísticas por empleado
+            const employeeStats = {};
+            filteredStatsData.forEach(item => {
+                if (!employeeStats[item.empleado]) {
+                    employeeStats[item.empleado] = { actividades: 0, horas: 0 };
+                }
+                employeeStats[item.empleado].actividades++;
+                employeeStats[item.empleado].horas += item.horasDecimal;
+            });
+            
+            reportContent += `ESTADÍSTICAS POR EMPLEADO:\n`;
+            Object.keys(employeeStats).forEach(emp => {
+                const stats = employeeStats[emp];
+                reportContent += `- ${emp}: ${stats.actividades} actividades, ${Math.round(stats.horas * 10) / 10} horas\n`;
+            });
+            
+            reportContent += `\nDETALLE DE ACTIVIDADES:\n`;
+            reportContent += `Fecha,Empleado,Hora Inicio,Hora Fin,Tiempo Total,Actividad\n`;
+            
+            filteredStatsData.forEach(item => {
+                reportContent += `"${item.fechaStr}","${item.empleado}","${item.horaInicio}","${item.horaFin}","${item.tiempoTotal}","${item.actividad}"\n`;
+            });
+            
+            const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `biocann_reporte_estadisticas_${new Date().toISOString().split('T')[0]}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            mostrarEstado('Reporte de estadísticas exportado correctamente', 'success');
+        }
+        
+        // Event listeners adicionales para modal de estadísticas
+        document.addEventListener('DOMContentLoaded', function() {
+            // Cerrar modal de estadísticas con ESC
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    const statsModal = document.getElementById('statsModal');
+                    if (statsModal.classList.contains('show')) {
+                        closeStatsModal();
+                    }
+                }
+            });
+            
+            // Cerrar modal de estadísticas clickeando fuera
+            const statsModal = document.getElementById('statsModal');
+            statsModal.onclick = function(event) {
+                if (event.target === statsModal) {
+                    closeStatsModal();
+                }
+            }
+            
+            // Prevenir que clicks en el contenido cierren el modal
+            statsModal.querySelector('.stats-modal-container').onclick = function(event) {
+                event.stopPropagation();
+            }
+        });                <div class="control-buttons">
+                    <button onclick="loadData()" class="btn">Cargar datos</button>
+                    <button onclick="exportData()" class="btn btn-secondary">Exportar</button>
+                    <button onclick="openStatsModal()" class="btn" style="background: #00aa00;">📊 Ver Estadísticas</button>
+                </div>

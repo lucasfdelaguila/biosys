@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biocann - Consulta de Datos</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: #2d5a27;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin-bottom: 10px;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .filter-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .filter-group input, .filter-group select {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .stat-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border-left: 4px solid #2d5a27;
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #2d5a27;
+        }
+        
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        
+        th {
+            background: #2d5a27;
+            color: white;
+            padding: 15px 10px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            background: #2d5a27;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        .btn:hover {
+            background: #1e3d1a;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+        }
+        
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .status {
+            margin: 15px 0;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            display: none;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .control-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        @media (max-width: 768px) {
+            .filters {
+                flex-direction: column;
+            }
+            
+            .filter-group {
+                width: 100%;
+            }
+            
+            .stats {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            table {
+                font-size: 14px;
+            }
+            
+            th, td {
+                padding: 8px 6px;
+            }
+            
+            .control-panel {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌿 Biocann</h1>
+            <p>Sistema de Consulta de Datos</p>
+        </div>
+        
+        <div class="content">
+            <!-- Panel de control -->
+            <div class="control-panel">
+                <div>
+                    <span>📊 <strong>Dashboard de Actividades</strong></span>
+                </div>
+                <div>
+                    <button onclick="loadData()" class="btn" style="margin-right: 10px;">🔄 Cargar datos</button>
+                    <button onclick="exportData()" class="btn btn-secondary">📥 Exportar</button>
+                </div>
+            </div>
+            
+            <!-- Estadísticas -->
+            <div id="stats" class="stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalRecords">-</div>
+                    <div class="stat-label">Total Registros</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="todayRecords">-</div>
+                    <div class="stat-label">Registros Hoy</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="uniqueEmployees">-</div>
+                    <div class="stat-label">Empleados Activos</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="lastUpdate">-</div>
+                    <div class="stat-label">Última Actualización</div>
+                </div>
+            </div>
+            
+            <!-- Filtros -->
+            <div class="filters">
+                <div class="filter-group">
+                    <label for="filterDate">Filtrar por fecha:</label>
+                    <input type="date" id="filterDate">
+                </div>
+                <div class="filter-group">
+                    <label for="filterEmployee">Filtrar por empleado:</label>
+                    <select id="filterEmployee">
+                        <option value="">Todos los empleados</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filterActivity">Filtrar por actividad:</label>
+                    <select id="filterActivity">
+                        <option value="">Todas las actividades</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>&nbsp;</label>
+                    <button onclick="clearFilters()" class="btn btn-secondary">Limpiar filtros</button>
+                </div>
+            </div>
+            
+            <!-- Tabla de datos -->
+            <div class="table-container">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th>Fecha/Hora</th>
+                            <th>Empleado</th>
+                            <th>Actividad</th>
+                            <th>Observaciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td colspan="4" class="loading">Haz clic en "Cargar datos" para empezar</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="status" class="status"></div>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURACIÓN SIMPLIFICADA
+        const SHEET_ID = '10Ib6l6V84Zun2e2m23Y5_7ZE1ie1mSGJ9qXKhm5384c';
+        const SHEET_NAME = 'Respuestas de Formulario 1';
+        
+        let allData = [];
+        let filteredData = [];
+        
+        async function loadData() {
+            try {
+                mostrarEstado('Cargando datos del formulario...', 'success');
+                
+                // URL pública del Google Sheet (debe estar compartido como "cualquier persona con el enlace")
+                const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}`;
+                
+                const response = await fetch(csvUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: Verifica que tu Google Sheet esté compartido públicamente`);
+                }
+                
+                const csvText = await response.text();
+                
+                // Parsear CSV simple
+                const rows = csvText.split('\n').map(row => {
+                    // Manejo básico de CSV con comillas
+                    const result = [];
+                    let current = '';
+                    let inQuotes = false;
+                    
+                    for (let i = 0; i < row.length; i++) {
+                        const char = row[i];
+                        if (char === '"') {
+                            inQuotes = !inQuotes;
+                        } else if (char === ',' && !inQuotes) {
+                            result.push(current.trim().replace(/^"|"$/g, ''));
+                            current = '';
+                        } else {
+                            current += char;
+                        }
+                    }
+                    result.push(current.trim().replace(/^"|"$/g, ''));
+                    return result;
+                });
+                
+                if (rows.length === 0) {
+                    throw new Error('No se encontraron datos en la hoja');
+                }
+                
+                // Primera fila = headers
+                const headers = rows[0];
+                
+                // Convertir a objetos
+                allData = rows.slice(1)
+                    .filter(row => row.length > 1 && row.some(cell => cell.trim() !== ''))
+                    .map(row => {
+                        const obj = {};
+                        headers.forEach((header, index) => {
+                            obj[header] = row[index] || '';
+                        });
+                        return obj;
+                    });
+                
+                filteredData = [...allData];
+                updateTable();
+                updateStats();
+                updateFilters();
+                
+                mostrarEstado(`✅ Datos cargados: ${allData.length} registros encontrados`, 'success');
+                
+            } catch (error) {
+                console.error('Error:', error);
+                mostrarEstado(`❌ ${error.message}`, 'error');
+                
+                // Mostrar instrucciones si falla
+                const tableBody = document.getElementById('tableBody');
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 20px;">
+                            <strong>Para que funcione, tu Google Sheet debe estar compartido públicamente:</strong><br><br>
+                            1. Abre tu Google Sheet<br>
+                            2. Clic en "Compartir" (arriba derecha)<br>
+                            3. Cambiar a "Cualquier persona con el enlace"<br>
+                            4. Permisos: "Lector"<br>
+                            5. Copiar enlace y recargar esta página
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+        
+        function updateTable() {
+            const tbody = document.getElementById('tableBody');
+            
+            if (filteredData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #666;">No hay datos que mostrar</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = filteredData.map(row => {
+                // Detectar automáticamente las columnas más probables
+                const keys = Object.keys(row);
+                const fecha = row[keys[0]] || ''; // Primera columna suele ser timestamp
+                const empleado = keys.find(k => k.toLowerCase().includes('empleado') || k.toLowerCase().includes('nombre')) ? row[keys.find(k => k.toLowerCase().includes('empleado') || k.toLowerCase().includes('nombre'))] : row[keys[1]] || '';
+                const actividad = keys.find(k => k.toLowerCase().includes('actividad') || k.toLowerCase().includes('tarea')) ? row[keys.find(k => k.toLowerCase().includes('actividad') || k.toLowerCase().includes('tarea'))] : row[keys[2]] || '';
+                const observaciones = keys.find(k => k.toLowerCase().includes('observacion') || k.toLowerCase().includes('comentario')) ? row[keys.find(k => k.toLowerCase().includes('observacion') || k.toLowerCase().includes('comentario'))] : row[keys[keys.length-1]] || '';
+                
+                return `
+                    <tr>
+                        <td>${fecha}</td>
+                        <td>${empleado}</td>
+                        <td>${actividad}</td>
+                        <td>${observaciones}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        function updateStats() {
+            const today = new Date().toLocaleDateString('es-AR');
+            const todayRecords = allData.filter(row => {
+                const firstCol = Object.values(row)[0] || '';
+                return firstCol.includes(today.split('/').reverse().join('-')) || firstCol.includes(today);
+            });
+            
+            const employeeKeys = Object.keys(allData[0] || {}).filter(k => 
+                k.toLowerCase().includes('empleado') || k.toLowerCase().includes('nombre')
+            );
+            
+            const uniqueEmployees = new Set(
+                allData.map(row => employeeKeys.length > 0 ? row[employeeKeys[0]] : Object.values(row)[1])
+                .filter(emp => emp && emp.trim() !== '')
+            ).size;
+            
+            document.getElementById('totalRecords').textContent = allData.length;
+            document.getElementById('todayRecords').textContent = todayRecords.length;
+            document.getElementById('uniqueEmployees').textContent = uniqueEmployees;
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('es-AR');
+        }
+        
+        function updateFilters() {
+            if (allData.length === 0) return;
+            
+            const keys = Object.keys(allData[0]);
+            const employeeKey = keys.find(k => k.toLowerCase().includes('empleado') || k.toLowerCase().includes('nombre')) || keys[1];
+            const activityKey = keys.find(k => k.toLowerCase().includes('actividad') || k.toLowerCase().includes('tarea')) || keys[2];
+            
+            // Filtro empleados
+            const employeeSelect = document.getElementById('filterEmployee');
+            const employees = [...new Set(allData.map(row => row[employeeKey]).filter(emp => emp && emp.trim() !== ''))].sort();
+            employeeSelect.innerHTML = '<option value="">Todos los empleados</option>' + 
+                employees.map(emp => `<option value="${emp}">${emp}</option>`).join('');
+            
+            // Filtro actividades
+            const activitySelect = document.getElementById('filterActivity');
+            const activities = [...new Set(allData.map(row => row[activityKey]).filter(act => act && act.trim() !== ''))].sort();
+            activitySelect.innerHTML = '<option value="">Todas las actividades</option>' + 
+                activities.map(act => `<option value="${act}">${act}</option>`).join('');
+        }
+        
+        function applyFilters() {
+            if (allData.length === 0) return;
+            
+            const dateFilter = document.getElementById('filterDate').value;
+            const employeeFilter = document.getElementById('filterEmployee').value;
+            const activityFilter = document.getElementById('filterActivity').value;
+            
+            const keys = Object.keys(allData[0]);
+            const employeeKey = keys.find(k => k.toLowerCase().includes('empleado') || k.toLowerCase().includes('nombre')) || keys[1];
+            const activityKey = keys.find(k => k.toLowerCase().includes('actividad') || k.toLowerCase().includes('tarea')) || keys[2];
+            
+            filteredData = allData.filter(row => {
+                const fecha = Object.values(row)[0] || '';
+                const empleado = row[employeeKey] || '';
+                const actividad = row[activityKey] || '';
+                
+                let matches = true;
+                
+                if (dateFilter && !fecha.includes(dateFilter)) {
+                    matches = false;
+                }
+                
+                if (employeeFilter && empleado !== employeeFilter) {
+                    matches = false;
+                }
+                
+                if (activityFilter && actividad !== activityFilter) {
+                    matches = false;
+                }
+                
+                return matches;
+            });
+            
+            updateTable();
+        }
+        
+        function clearFilters() {
+            document.getElementById('filterDate').value = '';
+            document.getElementById('filterEmployee').value = '';
+            document.getElementById('filterActivity').value = '';
+            filteredData = [...allData];
+            updateTable();
+        }
+        
+        function exportData() {
+            if (filteredData.length === 0) {
+                mostrarEstado('No hay datos para exportar', 'error');
+                return;
+            }
+            
+            const csv = [
+                ['Fecha/Hora', 'Empleado', 'Actividad', 'Observaciones'],
+                ...filteredData.map(row => {
+                    const keys = Object.keys(row);
+                    const employeeKey = keys.find(k => k.toLowerCase().includes('empleado') || k.toLowerCase().includes('nombre')) || keys[1];
+                    const activityKey = keys.find(k => k.toLowerCase().includes('actividad') || k.toLowerCase().includes('tarea')) || keys[2];
+                    const observKey = keys.find(k => k.toLowerCase().includes('observacion') || k.toLowerCase().includes('comentario')) || keys[keys.length-1];
+                    
+                    return [
+                        Object.values(row)[0] || '',
+                        row[employeeKey] || '',
+                        row[activityKey] || '',
+                        row[observKey] || ''
+                    ];
+                })
+            ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `biocann_datos_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            mostrarEstado('Archivo exportado correctamente', 'success');
+        }
+        
+        function mostrarEstado(mensaje, tipo) {
+            const status = document.getElementById('status');
+            status.textContent = mensaje;
+            status.className = `status ${tipo}`;
+            status.style.display = 'block';
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('filterDate').addEventListener('change', applyFilters);
+            document.getElementById('filterEmployee').addEventListener('change', applyFilters);
+            document.getElementById('filterActivity').addEventListener('change', applyFilters);
+        });
+    </script>
+</body>
+</html>

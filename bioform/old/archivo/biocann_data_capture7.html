@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biocann - Sistema de Consulta de Datos</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #0d1b0f 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #ffffff;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            overflow: hidden;
+            border: 1px solid #2d5a27;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2d5a27 0%, #1e3d1a 100%);
+            color: #ffffff;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="20" cy="20" r="1" fill="rgba(255,255,255,0.05)"/><circle cx="80" cy="30" r="1.5" fill="rgba(255,255,255,0.08)"/></svg>');
+            opacity: 0.3;
+        }
+        
+        .header h1 {
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .content {
+            padding: 30px;
+            background: #000000;
+        }
+        
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: rgba(45, 90, 39, 0.1);
+            border-radius: 10px;
+            border: 1px solid #2d5a27;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .filter-group label {
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #a8d4a8;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .filter-group input, .filter-group select {
+            padding: 12px;
+            border: 2px solid #2d5a27;
+            border-radius: 8px;
+            font-size: 14px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #ffffff;
+            transition: all 0.3s ease;
+        }
+        
+        .filter-group input:focus, .filter-group select:focus {
+            outline: none;
+            border-color: #4a9c4a;
+            box-shadow: 0 0 10px rgba(74, 156, 74, 0.3);
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, rgba(45, 90, 39, 0.2) 0%, rgba(30, 61, 26, 0.2) 100%);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid #2d5a27;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(45, 90, 39, 0.3);
+        }
+        
+        .stat-number {
+            font-size: 2.2em;
+            font-weight: bold;
+            color: #4a9c4a;
+            text-shadow: 0 0 10px rgba(74, 156, 74, 0.5);
+        }
+        
+        .stat-label {
+            color: #a8d4a8;
+            margin-top: 8px;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            border-radius: 12px;
+            border: 2px solid #2d5a27;
+            background: rgba(0, 0, 0, 0.9);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: transparent;
+        }
+        
+        th {
+            background: linear-gradient(135deg, #2d5a27 0%, #1e3d1a 100%);
+            color: #ffffff;
+            padding: 18px 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #4a9c4a;
+        }
+        
+        td {
+            padding: 15px 12px;
+            border-bottom: 1px solid rgba(45, 90, 39, 0.3);
+            color: #e0e0e0;
+            vertical-align: top;
+        }
+        
+        tr:hover {
+            background: rgba(45, 90, 39, 0.1);
+        }
+        
+        tr:nth-child(even) {
+            background: rgba(45, 90, 39, 0.05);
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #2d5a27 0%, #1e3d1a 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(45, 90, 39, 0.3);
+        }
+        
+        .btn:hover {
+            background: linear-gradient(135deg, #4a9c4a 0%, #2d5a27 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(45, 90, 39, 0.4);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #555555 0%, #333333 100%);
+            box-shadow: 0 4px 15px rgba(85, 85, 85, 0.3);
+        }
+        
+        .btn-secondary:hover {
+            background: linear-gradient(135deg, #777777 0%, #555555 100%);
+            box-shadow: 0 6px 20px rgba(85, 85, 85, 0.4);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #a8d4a8;
+            font-style: italic;
+        }
+        
+        .status {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            display: none;
+            font-weight: 600;
+        }
+        
+        .status.success {
+            background: rgba(74, 156, 74, 0.2);
+            color: #4a9c4a;
+            border: 1px solid #4a9c4a;
+        }
+        
+        .status.error {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+            border: 1px solid #e74c3c;
+        }
+        
+        .control-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: rgba(45, 90, 39, 0.1);
+            border-radius: 10px;
+            border: 1px solid #2d5a27;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .control-panel-title {
+            color: #4a9c4a;
+            font-size: 18px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .control-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .image-thumbnail {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-right: 8px;
+            margin-bottom: 5px;
+            border: 2px solid #2d5a27;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        .image-thumbnail:hover {
+            border-color: #4a9c4a;
+            transform: scale(1.1);
+            box-shadow: 0 4px 20px rgba(74, 156, 74, 0.4);
+        }
+        
+        .image-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: flex-start;
+        }
+        
+        .image-placeholder {
+            width: 50px;
+            height: 50px;
+            background: rgba(45, 90, 39, 0.2);
+            border: 2px dashed #2d5a27;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 18px;
+            color: #4a9c4a;
+            transition: all 0.3s ease;
+            margin-right: 8px;
+            margin-bottom: 5px;
+        }
+        
+        .image-placeholder:hover {
+            background: rgba(74, 156, 74, 0.2);
+            border-color: #4a9c4a;
+            transform: scale(1.05);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.95);
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal-content {
+            position: relative;
+            margin: 2% auto;
+            display: block;
+            width: 90%;
+            max-width: 900px;
+            max-height: 90%;
+            object-fit: contain;
+            border-radius: 10px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+        }
+        
+        .close {
+            position: absolute;
+            top: 20px;
+            right: 35px;
+            color: #ffffff;
+            font-size: 45px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 1001;
+        }
+        
+        .close:hover {
+            color: #4a9c4a;
+            transform: scale(1.1);
+        }
+        
+        .modal-caption {
+            margin: 20px auto;
+            display: block;
+            width: 80%;
+            max-width: 700px;
+            text-align: center;
+            color: #a8d4a8;
+            padding: 15px;
+            background: rgba(0,0,0,0.8);
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        @media (max-width: 768px) {
+            .filters {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .control-panel {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .control-buttons {
+                justify-content: center;
+            }
+            
+            table {
+                font-size: 13px;
+            }
+            
+            th, td {
+                padding: 10px 8px;
+            }
+            
+            .image-thumbnail, .image-placeholder {
+                width: 40px;
+                height: 40px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                margin: 10px;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .stats {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌿 BIOCANN</h1>
+            <p>Sistema de Consulta de Datos - Cannabis Farm&Lab</p>
+        </div>
+        
+        <div class="content">
+            <!-- Panel de control -->
+            <div class="control-panel">
+                <div class="control-panel-title">
+                    📊 Dashboard de Actividades
+                </div>
+                <div class="control-buttons">
+                    <button onclick="loadData()" class="btn">🔄 Cargar datos</button>
+                    <button onclick="exportData()" class="btn btn-secondary">📥 Exportar</button>
+                </div>
+            </div>
+            
+            <!-- Estadísticas -->
+            <div id="stats" class="stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalRecords">-</div>
+                    <div class="stat-label">Total Registros</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="todayRecords">-</div>
+                    <div class="stat-label">Registros Hoy</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="uniqueEmployees">-</div>
+                    <div class="stat-label">Empleados Activos</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="lastUpdate">-</div>
+                    <div class="stat-label">Última Actualización</div>
+                </div>
+            </div>
+            
+            <!-- Filtros -->
+            <div class="filters">
+                <div class="filter-group">
+                    <label for="filterDate">📅 Filtrar por fecha:</label>
+                    <input type="date" id="filterDate">
+                </div>
+                <div class="filter-group">
+                    <label for="filterEmployee">👤 Filtrar por empleado:</label>
+                    <select id="filterEmployee">
+                        <option value="">Todos los empleados</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filterActivity">⚡ Filtrar por actividad:</label>
+                    <select id="filterActivity">
+                        <option value="">Todas las actividades</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>&nbsp;</label>
+                    <button onclick="clearFilters()" class="btn btn-secondary">🗑️ Limpiar filtros</button>
+                </div>
+            </div>
+            
+            <!-- Tabla de datos -->
+            <div class="table-container">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th>📅 Fecha/Hora</th>
+                            <th>👤 Empleado</th>
+                            <th>⚡ Actividad</th>
+                            <th>📍 Ubicación</th>
+                            <th>⏱️ Tiempo</th>
+                            <th>📝 Detalles</th>
+                            <th>📸 Imágenes</th>
+                            <th>💬 Observaciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td colspan="8" class="loading">Haz clic en "🔄 Cargar datos" para empezar</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="status" class="status"></div>
+        </div>
+    </div>
+
+    <!-- Modal para imágenes -->
+    <div id="imageModal" class="modal">
+        <span class="close">&times;</span>
+        <img class="modal-content" id="modalImage">
+        <div id="caption" class="modal-caption"></div>
+    </div>
+
+    <script>
+        // CONFIGURACIÓN
+        const SHEET_ID = '10Ib6l6V84Zun2e2m23Y5_7ZE1ie1mSGJ9qXKhm5384c';
+        const SHEET_NAME = 'Respuestas de Formulario 1';
+        
+        let allData = [];
+        let filteredData = [];
+        
+        async function loadData() {
+            try {
+                mostrarEstado('🔄 Cargando datos del formulario...', 'success');
+                
+                const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}`;
+                
+                const response = await fetch(csvUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: Verifica que tu Google Sheet esté compartido públicamente`);
+                }
+                
+                const csvText = await response.text();
+                
+                // Parsear CSV
+                const rows = csvText.split('\n').map(row => {
+                    const result = [];
+                    let current = '';
+                    let inQuotes = false;
+                    
+                    for (let i = 0; i < row.length; i++) {
+                        const char = row[i];
+                        if (char === '"') {
+                            inQuotes = !inQuotes;
+                        } else if (char === ',' && !inQuotes) {
+                            result.push(current.trim().replace(/^"|"$/g, ''));
+                            current = '';
+                        } else {
+                            current += char;
+                        }
+                    }
+                    result.push(current.trim().replace(/^"|"$/g, ''));
+                    return result;
+                });
+                
+                if (rows.length === 0) {
+                    throw new Error('No se encontraron datos en la hoja');
+                }
+                
+                const headers = rows[0];
+                
+                allData = rows.slice(1)
+                    .filter(row => row.length > 1 && row.some(cell => cell.trim() !== ''))
+                    .map(row => {
+                        const obj = {};
+                        headers.forEach((header, index) => {
+                            obj[header] = row[index] || '';
+                        });
+                        return obj;
+                    });
+                
+                filteredData = [...allData];
+                updateTable();
+                updateStats();
+                updateFilters();
+                
+                mostrarEstado(`✅ Datos cargados exitosamente: ${allData.length} registros encontrados`, 'success');
+                
+            } catch (error) {
+                console.error('Error:', error);
+                mostrarEstado(`❌ ${error.message}`, 'error');
+                
+                const tableBody = document.getElementById('tableBody');
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 30px; color: #e74c3c;">
+                            <strong>⚠️ Para que funcione, tu Google Sheet debe estar compartido públicamente:</strong><br><br>
+                            1. Abre tu Google Sheet<br>
+                            2. Clic en "Compartir" (arriba derecha)<br>
+                            3. Cambiar a "Cualquier persona con el enlace"<br>
+                            4. Permisos: "Lector"<br>
+                            5. Recargar esta página
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+        
+        function updateTable() {
+            const tbody = document.getElementById('tableBody');
+            
+            if (filteredData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #a8d4a8; font-style: italic;">No hay datos que mostrar</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = filteredData.map(row => {
+                const keys = Object.keys(row);
+                
+                // Mapeo de columnas específico para Biocann
+                const fecha = row[keys[0]] || ''; // Columna A - Timestamp
+                const empleado = row[keys[6]] || ''; // Columna G - Empleados  
+                const actividad = row[keys[2]] || ''; // Columna C - Actividad
+                const ubicacion = row[keys[3]] || ''; // Columna D - Nueva
+                const tiempo = row[keys[4]] || ''; // Columna E - Nueva
+                const detalles = row[keys[5]] || ''; // Columna F - Nueva
+                const imagenes = row[keys[7]] || ''; // Columna H - Imágenes
+                const observaciones = row[keys[keys.length-1]] || ''; // Última columna
+                
+                // Procesar imágenes
+                let imagenesHtml = '';
+                if (imagenes && imagenes.trim() !== '') {
+                    console.log('🖼️ Procesando imágenes:', imagenes);
+                    
+                    let imageUrls = [];
+                    if (imagenes.includes(',')) {
+                        imageUrls = imagenes.split(',').map(url => url.trim()).filter(url => url.length > 0);
+                    } else {
+                        imageUrls = [imagenes.trim()];
+                    }
+                    
+                    imageUrls = imageUrls.map(url => convertGoogleDriveUrl(url));
+                    
+                    if (imageUrls.length > 0) {
+                        imagenesHtml = '<div class="image-container">' + 
+                            imageUrls.map((url, index) => {
+                                if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+                                    return `
+                                        <div style="position: relative; display: inline-block;">
+                                            <img src="${url}" class="image-thumbnail" 
+                                               onclick="openModal('${url}', '${empleado} - ${actividad}')" 
+                                               onerror="tryFallbackImage(this, '${url}')" 
+                                               onload="console.log('✅ Imagen cargada:', '${url}');"
+                                               alt="Imagen ${index + 1}" title="Click para ampliar">
+                                            <div class="image-placeholder" style="display: none;" 
+                                                 onclick="window.open('${getOriginalUrl(url)}', '_blank')" 
+                                                 title="Click para abrir imagen">📷</div>
+                                        </div>
+                                    `;
+                                }
+                                return '';
+                            }).join('') + '</div>';
+                    }
+                }
+                
+                return `
+                    <tr>
+                        <td><strong>${formatDate(fecha)}</strong></td>
+                        <td><span style="color: #4a9c4a; font-weight: 600;">${empleado}</span></td>
+                        <td>${actividad}</td>
+                        <td>${ubicacion}</td>
+                        <td>${tiempo}</td>
+                        <td>${detalles}</td>
+                        <td>${imagenesHtml}</td>
+                        <td>${observaciones}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            try {
+                const date = new Date(dateStr);
+                return date.toLocaleString('es-AR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch (e) {
+                return dateStr;
+            }
+        }
+        
+        function updateStats() {
+            const today = new Date().toLocaleDateString('es-AR');
+            const todayRecords = allData.filter(row => {
+                const firstCol = Object.values(row)[0] || '';
+                return firstCol.includes(today.split('/').reverse().join('-')) || firstCol.includes(today);
+            });
+            
+            const uniqueEmployees = new Set(
+                allData.map(row => Object.values(row)[6])
+                .filter(emp => emp && emp.trim() !== '')
+            ).size;
+            
+            document.getElementById('totalRecords').textContent = allData.length;
+            document.getElementById('todayRecords').textContent = todayRecords.length;
+            document.getElementById('uniqueEmployees').textContent = uniqueEmployees;
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('es-AR');
+        }
+        
+        function updateFilters() {
+            if (allData.length === 0) return;
+            
+            const keys = Object.keys(allData[0]);
+            const employeeKey = keys[6];
+            const activityKey = keys[2];
+            
+            const employeeSelect = document.getElementById('filterEmployee');
+            const employees = [...new Set(allData.map(row => row[employeeKey]).filter(emp => emp && emp.trim() !== ''))].sort();
+            employeeSelect.innerHTML = '<option value="">Todos los empleados</option>' + 
+                employees.map(emp => `<option value="${emp}">${emp}</option>`).join('');
+            
+            const activitySelect = document.getElementById('filterActivity');
+            const activities = [...new Set(allData.map(row => row[activityKey]).filter(act => act && act.trim() !== ''))].sort();
+            activitySelect.innerHTML = '<option value="">Todas las actividades</option>' + 
+                activities.map(act => `<option value="${act}">${act}</option>`).join('');
+        }
+        
+        function applyFilters() {
+            if (allData.length === 0) return;
+            
+            const dateFilter = document.getElementById('filterDate').value;
+            const employeeFilter = document.getElementById('filterEmployee').value;
+            const activityFilter = document.getElementById('filterActivity').value;
+            
+            const keys = Object.keys(allData[0]);
+            
+            filteredData = allData.filter(row => {
+                const fecha = Object.values(row)[0] || '';
+                const empleado = row[keys[6]] || '';
+                const actividad = row[keys[2]] || '';
+                
+                let matches = true;
+                
+                if (dateFilter && !fecha.includes(dateFilter)) {
+                    matches = false;
+                }
+                
+                if (employeeFilter && empleado !== employeeFilter) {
+                    matches = false;
+                }
+                
+                if (activityFilter && actividad !== activityFilter) {
+                    matches = false;
+                }
+                
+                return matches;
+            });
+            
+            updateTable();
+        }
+        
+        function clearFilters() {
+            document.getElementById('filterDate').value = '';
+            document.getElementById('filterEmployee').value = '';
+            document.getElementById('filterActivity').value = '';
+            filteredData = [...allData];
+            updateTable();
+        }
+        
+        function exportData() {
+            if (filteredData.length === 0) {
+                mostrarEstado('❌ No hay datos para exportar', 'error');
+                return;
+            }
+            
+            const csv = [
+                ['Fecha/Hora', 'Empleado', 'Actividad', 'Ubicación', 'Tiempo', 'Detalles', 'Imágenes', 'Observaciones'],
+                ...filteredData.map(row => {
+                    const keys = Object.keys(row);
+                    return [
+                        Object.values(row)[0] || '',
+                        row[keys[6]] || '',
+                        row[keys[2]] || '',
+                        row[keys[3]] || '',
+                        row[keys[4]] || '',
+                        row[keys[5]] || '',
+                        row[keys[7]] || '',
+                        row[keys[keys.length-1]] || ''
+                    ];
+                })
+            ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `biocann_datos_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            mostrarEstado('✅ Archivo exportado correctamente', 'success');
+        }
+        
+        function openModal(imageUrl, caption) {
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImage');
+            const captionText = document.getElementById('caption');
+            
+            modal.style.display = 'block';
+            modalImg.src = imageUrl;
+            modalImg.onerror = () => {
+                modalImg.src = getOriginalUrl(imageUrl);
+            };
+            captionText.innerHTML = caption;
+        }
+        
+        function closeModal() {
+            document.getElementById('imageModal').style.display = 'none';
+        }
+        
+        function convertGoogleDriveUrl(url) {
+            if (!url || typeof url !== 'string') return url;
+            
+            if (url.includes('drive.google.com/uc?export=view') || url.includes('drive.google.com/thumbnail')) {
+                return url;
+            }
+            
+            let fileId = null;
+            
+            if (url.includes('drive.google.com/open?id=')) {
+                const match = url.match(/id=([a-zA-Z0-9_-]+)/);
+                if (match) fileId = match[1];
+            } else if (url.includes('drive.google.com/file/d/')) {
+                const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+                if (match) fileId = match[1];
+            }
+            
+            if (fileId) {
+                console.log(`🔄 Convirtiendo Google Drive URL: ${fileId}`);
+                return `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;
+            }
+            
+            return url;
+        }
+        
+        function getOriginalUrl(convertedUrl) {
+            if (convertedUrl.includes('thumbnail?id=')) {
+                const fileId = convertedUrl.match(/id=([a-zA-Z0-9_-]+)/)?.[1];
+                if (fileId) {
+                    return `https://drive.google.com/file/d/${fileId}/view`;
+                }
+            }
+            return convertedUrl;
+        }
+        
+        function tryFallbackImage(imgElement, originalUrl) {
+            const fileIdMatch = originalUrl.match(/id=([a-zA-Z0-9_-]+)/);
+            if (!fileIdMatch) {
+                imgElement.style.display = 'none';
+                imgElement.nextElementSibling.style.display = 'flex';
+                return;
+            }
+            
+            const fileId = fileIdMatch[1];
+            const fallbackUrls = [
+                `https://drive.google.com/uc?export=view&id=${fileId}`,
+                `https://drive.google.com/uc?id=${fileId}`,
+                `https://lh3.googleusercontent.com/d/${fileId}=w400`
+            ];
+            
+            let currentTry = parseInt(imgElement.dataset.tryCount || '0');
+            
+            if (currentTry < fallbackUrls.length) {
+                console.log(`🔄 Probando URL fallback #${currentTry + 1}:`, fallbackUrls[currentTry]);
+                imgElement.dataset.tryCount = (currentTry + 1).toString();
+                imgElement.src = fallbackUrls[currentTry];
+            } else {
+                console.log('❌ Todas las URLs fallaron, mostrando placeholder');
+                imgElement.style.display = 'none';
+                imgElement.nextElementSibling.style.display = 'flex';
+            }
+        }
+        
+        function mostrarEstado(mensaje, tipo) {
+            const status = document.getElementById('status');
+            status.textContent = mensaje;
+            status.className = `status ${tipo}`;
+            status.style.display = 'block';
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('filterDate').addEventListener('change', applyFilters);
+            document.getElementById('filterEmployee').addEventListener('change', applyFilters);
+            document.getElementById('filterActivity').addEventListener('change', applyFilters);
+            
+            // Modal event listeners
+            const modal = document.getElementById('imageModal');
+            const closeBtn = document.getElementsByClassName('close')[0];
+            
+            closeBtn.onclick = closeModal;
+            
+            window.onclick = function(event) {
+                if (event.target == modal) {
+                    closeModal();
+                }
+            }
+            
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    closeModal();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

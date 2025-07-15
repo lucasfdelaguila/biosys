@@ -1,0 +1,65 @@
+<!-- Agregado al final del panel de botones dentro de <div class="control-buttons"> -->
+<button onclick="abrirEstadisticasReact()" class="btn">Ver estadísticas</button>
+
+<!-- Contenedor del gráfico -->
+<div id="reactStatsContainer" style="display:none; padding: 20px; background: #000; border-radius: 8px; margin: 20px;"></div>
+
+<!-- Scripts React, Babel y Chart.js -->
+<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Script React para estadisticas -->
+<script type="text/babel">
+  function Estadisticas({ datos }) {
+    React.useEffect(() => {
+      const ctx = document.getElementById('chartCanvas').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: datos.map(d => d.fecha),
+          datasets: [{
+            label: 'Cantidad de Actividades',
+            data: datos.map(d => d.cantidad),
+            backgroundColor: 'rgba(0, 255, 0, 0.6)'
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            title: { display: true, text: 'Actividades por Fecha' }
+          }
+        }
+      });
+    }, []);
+
+    return (
+      <div>
+        <h3 style={{ color: 'white' }}>Estadísticas</h3>
+        <canvas id="chartCanvas" height="100"></canvas>
+        <button className="btn btn-secondary" onClick={() => {
+          document.getElementById('reactStatsContainer').style.display = 'none';
+        }}>Cerrar</button>
+      </div>
+    );
+  }
+
+  function abrirEstadisticasReact() {
+    const datosAgrupados = {};
+    filteredData.forEach(row => {
+      const keys = Object.keys(row);
+      const fechaCruda = row[keys[1]] || '';
+      const fecha = formatToYYYYMMDD(parseDateForComparison(fechaCruda));
+      if (!fecha) return;
+      if (!datosAgrupados[fecha]) datosAgrupados[fecha] = 0;
+      datosAgrupados[fecha]++;
+    });
+
+    const datos = Object.entries(datosAgrupados).map(([fecha, cantidad]) => ({ fecha, cantidad }));
+
+    document.getElementById('reactStatsContainer').style.display = 'block';
+    ReactDOM.render(<Estadisticas datos={datos} />, document.getElementById('reactStatsContainer'));
+  }
+</script>

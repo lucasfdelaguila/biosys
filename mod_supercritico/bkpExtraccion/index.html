@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estadísticas de Extracciones Supercríticas</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="app-header">
+            <h1><i class="fas fa-flask"></i> Estadísticas de Extracciones Supercríticas</h1>
+            <p class="subtitle">Análisis de rendimientos y datos de extracción</p>
+        </div>
+
+        <!-- Panel de estadísticas principales -->
+        <div class="stats-panel">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-flask-vial"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>Total Extracciones</h3>
+                    <p id="totalExtractions">0</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>Rendimiento Promedio</h3>
+                    <p id="avgYield">0%</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>Período Analizado</h3>
+                    <p id="dateRange">-</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-trophy"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>Mejor Rendimiento</h3>
+                    <p id="bestYield">0%</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controles de filtro -->
+        <div class="filters-panel" style="margin-bottom: 30px; display: flex; gap: 20px; align-items: center;">
+            <div class="filter-group">
+                <label for="orderByDate">Ordenar por fecha:</label>
+                <select id="orderByDate">
+                    <option value="desc">Más nuevo a más viejo</option>
+                    <option value="asc">Más viejo a más nuevo</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="datePicker">Filtrar por fecha puntual:</label>
+                <input type="date" id="datePicker">
+            </div>
+            <div class="filter-group">
+                <label for="varietyFilter">Filtrar por variedad:</label>
+                <select id="varietyFilter">
+                    <option value="all">Todas las variedades</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs-container">
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="extracciones">Tabla de extracciones</button>
+                <button class="tab-btn" data-tab="resumen">Resumen diario</button>
+                <button class="tab-btn" data-tab="graficos">Gráficos</button>
+            </div>
+            <div class="tab-content active" id="tab-extracciones">
+                <!-- Tabla de extracciones -->
+                <div class="table-section">
+                    <div class="table-header">
+                        <h3><i class="fas fa-table"></i> Registro de Extracciones</h3>
+                    </div>
+                    <div class="table-container">
+                        <table id="extractionsTable">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Hora</th>
+                                    <th>Lote Origen</th>
+                                    <th>Peso Ingreso (gr)</th>
+                                    <th>Nro Ciclo</th>
+                                    <th>Nro Extracción</th>
+                                    <th>Peso Extraído (gr)</th>
+                                    <th>Variedad</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody">
+                                <!-- Los datos se cargarán aquí -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pagination">
+                        <button id="prevPage" class="page-btn"><i class="fas fa-chevron-left"></i></button>
+                        <span id="pageInfo">Página 1 de 1</span>
+                        <button id="nextPage" class="page-btn"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-content" id="tab-resumen" style="display:none;">
+                <!-- Tabla resumen de rendimientos diarios -->
+                <div class="table-section">
+                    <div class="table-header">
+                        <h3><i class="fas fa-percentage"></i> Rendimiento Diario</h3>
+                    </div>
+                    <div class="table-container">
+                        <table id="dailyYieldTable">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Peso Ingreso Total (gr)</th>
+                                    <th>Peso Extraído Total (gr)</th>
+                                    <th>Rendimiento (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dailyYieldBody">
+                                <!-- Los datos se cargarán aquí -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-content" id="tab-graficos" style="display:none;">
+                <!-- Aquí irá el gráfico de rendimiento diario -->
+                <div class="charts-section">
+                    <div class="chart-container">
+                        <h3><i class="fas fa-chart-pie"></i> Rendimiento Diario (Torta)</h3>
+                        <canvas id="yieldChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de carga -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Cargando datos de extracciones...</p>
+        </div>
+
+        <!-- Panel de error -->
+        <div class="error" id="error">
+            <i class="fas fa-exclamation-triangle"></i>
+            <p id="errorMessage">Error al cargar los datos</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+    // Tabs JS mejorado
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            tabBtns.forEach(b => b.classList.remove('active'));
+            tabContents.forEach(tc => tc.style.display = 'none');
+            btn.classList.add('active');
+            document.getElementById('tab-' + btn.dataset.tab).style.display = 'block';
+        });
+    });
+    // Mostrar solo la primera tab al cargar
+    window.addEventListener('DOMContentLoaded', () => {
+        tabContents.forEach((tc, i) => tc.style.display = i === 0 ? 'block' : 'none');
+    });
+    </script>
+</body>
+</html> 
