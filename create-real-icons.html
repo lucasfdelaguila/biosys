@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Iconos Biocann - Logo Real</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .upload-section {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+        }
+        .preview {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .preview img {
+            max-width: 200px;
+            max-height: 200px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .sizes {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .size-item {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        .size-item img {
+            width: 100%;
+            height: auto;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .generate-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        .generate-btn:hover {
+            background: #45a049;
+        }
+        .download-all {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        .download-all:hover {
+            background: #1976D2;
+        }
+        .instructions {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .instructions h3 {
+            margin-top: 0;
+            color: #1976d2;
+        }
+        .instructions ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .instructions li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖼️ Generador de Iconos Biocann - Logo Real</h1>
+        
+        <div class="instructions">
+            <h3>📋 Instrucciones:</h3>
+            <ol>
+                <li>Sube el archivo <strong>icono.jpg</strong> con el logo real de Biocann</li>
+                <li>Revisa la vista previa para asegurarte de que se ve correcto</li>
+                <li>Haz clic en "Generar Iconos" para crear todos los tamaños</li>
+                <li>Descarga todos los iconos y reemplaza los archivos en la carpeta <strong>icons/</strong></li>
+            </ol>
+        </div>
+
+        <div class="upload-section">
+            <h3>📁 Subir Logo Real</h3>
+            <input type="file" id="logoInput" accept="image/*" style="margin: 10px;">
+            <p><small>Formatos soportados: JPG, PNG, GIF</small></p>
+            
+            <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <h4>🎨 Opciones de diseño:</h4>
+                <div style="display: flex; align-items: center; gap: 15px; margin: 10px 0;">
+                    <input type="checkbox" id="roundedCorners" checked>
+                    <label for="roundedCorners">Bordes redondeados</label>
+                </div>
+                <div style="display: flex; align-items: center; gap: 15px; margin: 10px 0;">
+                    <label for="cornerRadius">Radio de esquinas:</label>
+                    <input type="range" id="cornerRadius" min="0" max="30" value="15" style="flex: 1;">
+                    <span id="radiusValue">15%</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="preview" id="preview" style="display: none;">
+            <h3>👀 Vista Previa</h3>
+            <img id="previewImg" alt="Vista previa del logo">
+        </div>
+
+        <div style="text-align: center;">
+            <button class="generate-btn" onclick="generateIcons()" id="generateBtn" disabled>
+                🎨 Generar Iconos
+            </button>
+            <button class="download-all" onclick="downloadAllIcons()" id="downloadAllBtn" disabled>
+                📥 Descargar Todos los Iconos
+            </button>
+        </div>
+
+        <div class="sizes" id="sizesContainer" style="display: none;">
+            <!-- Los iconos generados se mostrarán aquí -->
+        </div>
+    </div>
+
+    <script>
+        let originalImage = null;
+        const iconSizes = [72, 96, 128, 144, 152, 192, 384, 512];
+        let generatedIcons = {};
+
+        // Actualizar valor del radio
+        document.getElementById('cornerRadius').addEventListener('input', function() {
+            document.getElementById('radiusValue').textContent = this.value + '%';
+        });
+
+        document.getElementById('logoInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    originalImage = new Image();
+                    originalImage.onload = function() {
+                        document.getElementById('previewImg').src = event.target.result;
+                        document.getElementById('preview').style.display = 'block';
+                        document.getElementById('generateBtn').disabled = false;
+                    };
+                    originalImage.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function generateIcons() {
+            if (!originalImage) return;
+
+            const container = document.getElementById('sizesContainer');
+            container.innerHTML = '';
+            generatedIcons = {};
+
+            iconSizes.forEach(size => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Crear canvas con el tamaño requerido
+                canvas.width = size;
+                canvas.height = size;
+                
+                // Fondo transparente
+                ctx.clearRect(0, 0, size, size);
+                
+                // Calcular dimensiones para mantener proporción
+                const imgAspectRatio = originalImage.width / originalImage.height;
+                let drawWidth = size;
+                let drawHeight = size;
+                
+                if (imgAspectRatio > 1) {
+                    // Imagen más ancha que alta
+                    drawHeight = size / imgAspectRatio;
+                } else {
+                    // Imagen más alta que ancha
+                    drawWidth = size * imgAspectRatio;
+                }
+                
+                // Centrar la imagen
+                const x = (size - drawWidth) / 2;
+                const y = (size - drawHeight) / 2;
+                
+                // Aplicar bordes redondeados si está habilitado
+                const useRoundedCorners = document.getElementById('roundedCorners').checked;
+                const cornerRadiusPercent = parseInt(document.getElementById('cornerRadius').value);
+                
+                if (useRoundedCorners && cornerRadiusPercent > 0) {
+                    ctx.save();
+                    ctx.beginPath();
+                    const radius = size * (cornerRadiusPercent / 100);
+                    ctx.roundRect(0, 0, size, size, radius);
+                    ctx.clip();
+                }
+                
+                // Dibujar la imagen
+                ctx.drawImage(originalImage, x, y, drawWidth, drawHeight);
+                
+                // Restaurar contexto si se aplicaron bordes redondeados
+                if (useRoundedCorners && cornerRadiusPercent > 0) {
+                    ctx.restore();
+                }
+                
+                // Crear elemento para mostrar
+                const sizeItem = document.createElement('div');
+                sizeItem.className = 'size-item';
+                
+                const img = document.createElement('img');
+                img.src = canvas.toDataURL('image/png');
+                img.alt = `Icono ${size}x${size}`;
+                
+                const label = document.createElement('div');
+                label.textContent = `${size}x${size}`;
+                label.style.fontWeight = 'bold';
+                label.style.marginTop = '10px';
+                
+                const downloadBtn = document.createElement('button');
+                downloadBtn.textContent = '📥 Descargar';
+                downloadBtn.style.cssText = 'background: #4CAF50; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-top: 10px; font-size: 12px;';
+                downloadBtn.onclick = () => downloadIcon(size, canvas);
+                
+                sizeItem.appendChild(img);
+                sizeItem.appendChild(label);
+                sizeItem.appendChild(downloadBtn);
+                container.appendChild(sizeItem);
+                
+                // Guardar referencia del canvas
+                generatedIcons[size] = canvas;
+            });
+            
+            container.style.display = 'grid';
+            document.getElementById('downloadAllBtn').disabled = false;
+        }
+
+        function downloadIcon(size, canvas) {
+            const link = document.createElement('a');
+            link.download = `icon-${size}x${size}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        function downloadAllIcons() {
+            iconSizes.forEach(size => {
+                if (generatedIcons[size]) {
+                    setTimeout(() => {
+                        downloadIcon(size, generatedIcons[size]);
+                    }, size * 10); // Pequeño delay para evitar problemas del navegador
+                }
+            });
+        }
+    </script>
+</body>
+</html> 
